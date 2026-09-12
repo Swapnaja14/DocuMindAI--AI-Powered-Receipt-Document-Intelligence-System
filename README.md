@@ -1,0 +1,1 @@
+# DocuMindAI--AI-Powered-Receipt-Document-Intelligence-System
