@@ -1,9 +1,8 @@
 from pymongo import MongoClient
 
-from app.core.config import settings
+client = MongoClient("mongodb://localhost:27017")
 
-client = MongoClient(settings.mongodb_url)
-db = client[settings.mongodb_database]
+db = client["documind"]
 
 users_collection = db["users"]
 documents_collection = db["documents"]
