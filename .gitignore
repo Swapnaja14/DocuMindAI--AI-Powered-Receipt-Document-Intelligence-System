@@ -1,0 +1,29 @@
+# Environments
+venv/
+.venv/
+env/
+backend/venv/
+
+# Environment Variables
+.env
+backend/.env
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Storage & Uploads
+storage/
+backend/storage/
+
+# Node
+node_modules/
+
+# Logs
+*.log
+
+# OS Generated
+.DS_Store
+Thumbs.db

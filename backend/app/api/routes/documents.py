@@ -17,6 +17,7 @@ from app.core.config import settings
 from app.core.database import documents_collection
 from app.models.document import DocumentStatus
 from app.schemas.document import DocumentResponse, DocumentListItem
+from app.tasks.document_tasks import process_document
 
 router = APIRouter(
     prefix="/documents",
@@ -123,6 +124,24 @@ async def upload_document(
 
         result = documents_collection.insert_one(document)
 
+        document_id = str(result.inserted_id)
+
+        try:
+            process_document.delay(document_id)
+        except Exception:
+            documents_collection.update_one(
+                {"_id": result.inserted_id},
+                {
+                    "$set": {
+                        "status":  DocumentStatus.FAILED.value,
+                    }
+                },
+            )
+            raise HTTPException(
+                status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail = "Document was saved but could not be queued for processing.",
+            )
+
     except Exception:
         # Remove saved file if MongoDB insertion fails
         if file_path.exists():
@@ -183,7 +202,7 @@ def list_documents(
 )
 def get_document(
     document_id: str,
-    current_user=Depends(get_current_user)
+    current_user=Depends(get_current_user),
 ):
     if not ObjectId.is_valid(document_id):
         raise HTTPException(
@@ -197,16 +216,17 @@ def get_document(
             "user_id": current_user["_id"],
         }
     )
+
     if not document:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found",
+            detail="Document not found.",
         )
 
     return DocumentResponse(
         id=str(document["_id"]),
         user_id=str(document["user_id"]),
-        filename=str(document["filename"]),
+        filename=document["filename"],
         file_type=document["file_type"],
         file_path=document["file_path"],
         file_size=document["file_size"],
@@ -216,6 +236,7 @@ def get_document(
         chunks=document["chunks"],
         processing=document["processing"],
     )
+  
 
 
 @router.delete(
