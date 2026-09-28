@@ -27,8 +27,10 @@ class Chunk(BaseModel):
 
 class ProcessingData(BaseModel):
     uploaded_at: datetime
-    processed_at: datetime | None = None
-    processing_time_ms: int | None = None
+    processed_at: Optional[datetime] = None
+    processing_time_ms: Optional[int] = None
+    stage: Optional[str] = None
+    error: Optional[str] = None
 
 
 class DocumentResponse(BaseModel):

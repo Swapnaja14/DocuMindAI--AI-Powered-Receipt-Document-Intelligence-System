@@ -105,20 +105,14 @@ async def upload_document(
                 "raw_text": "",
                 "page_count": 0,
             },
-            "extracted_data": {
-                "vendor": None,
-                "invoice_number": None,
-                "date": None,
-                "currency": None,
-                "subtotal": None,
-                "tax": None,
-                "total": None,
-            },
+            "extracted_data": {},
             "chunks": [],
             "processing": {
                 "uploaded_at": now,
                 "processed_at": None,
                 "processing_time_ms": None,
+                "stage": "uploaded",
+                "error": None,
             },
         }
 
