@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 from pydantic import BaseModel
 from app.models.document import DocumentStatus
 
@@ -7,6 +7,13 @@ from app.models.document import DocumentStatus
 class OCRData(BaseModel):
     raw_text: str = ""
     page_count: int = 0
+
+
+class ExtractedItem(BaseModel):
+    description: Optional[str] = None
+    quantity: Optional[float] = None
+    unit_price: Optional[float] = None
+    amount: Optional[float] = None
 
 
 class ExtractedData(BaseModel):
@@ -17,6 +24,14 @@ class ExtractedData(BaseModel):
     subtotal: Optional[float] = None
     tax: Optional[float] = None
     total: Optional[float] = None
+    items: List[ExtractedItem] = []
+
+
+class ValidationData(BaseModel):
+    is_valid: bool = True
+    status: str = "VALIDATED"
+    errors: List[str] = []
+    error: Optional[List[str]] = None
 
 
 class Chunk(BaseModel):
@@ -43,8 +58,10 @@ class DocumentResponse(BaseModel):
     status: DocumentStatus
     ocr: OCRData
     extracted_data: ExtractedData
-    chunks: List[Chunk]
+    validation: Optional[ValidationData] = None
+    chunks: List[Chunk] = []
     processing: ProcessingData
+
 
 class DocumentListItem(BaseModel):
     id: str
@@ -53,4 +70,3 @@ class DocumentListItem(BaseModel):
     file_size: int
     status: DocumentStatus
     uploaded_at: datetime
-    
