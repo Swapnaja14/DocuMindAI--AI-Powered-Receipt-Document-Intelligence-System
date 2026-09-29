@@ -51,11 +51,53 @@ def validate_file(file_path: str) -> str:
     return extension
 
 
+def preprocess_image(image: Image.Image) -> Image.Image:
+    """Preprocess image for optimal receipt and invoice OCR recognition."""
+    # Convert RGBA/P images with alpha/transparency to clean RGB with white background
+    if image.mode in ("RGBA", "LA", "P"):
+        background = Image.new("RGB", image.size, (255, 255, 255))
+        if image.mode == "P":
+            image = image.convert("RGBA")
+        background.paste(
+            image,
+            mask=image.split()[-1] if "A" in image.getbands() else None,
+        )
+        image = background
+    elif image.mode != "RGB":
+        image = image.convert("RGB")
+
+    # If image resolution is low (e.g., width < 1200), upscale with Lanczos for clearer character shapes
+    w, h = image.size
+    if w < 1200:
+        factor = 1400 / w
+        image = image.resize(
+            (int(w * factor), int(h * factor)),
+            Image.Resampling.LANCZOS,
+        )
+
+    return image
+
+
 def ocr_image(image: Image.Image) -> str:
-    """Run OCR on a PIL image and return stripped recognized text."""
+    """Run OCR on a PIL image with layout optimization and return recognized text."""
     try:
-        text = pytesseract.image_to_string(image)
-        return text.strip()
+        processed_img = preprocess_image(image)
+
+        # Try PSM 6 (single uniform block of text, ideal for tabular receipts)
+        text_psm6 = pytesseract.image_to_string(
+            processed_img,
+            config="--psm 6 --oem 3",
+        ).strip()
+
+        # Try PSM 3 (fully automatic page segmentation)
+        text_psm3 = pytesseract.image_to_string(
+            processed_img,
+            config="--psm 3 --oem 3",
+        ).strip()
+
+        # Choose whichever captured more rich information
+        selected_text = text_psm6 if len(text_psm6) >= len(text_psm3) else text_psm3
+        return selected_text
 
     except Exception as exc:
         raise OCRProcessingError(

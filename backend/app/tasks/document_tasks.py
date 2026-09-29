@@ -10,6 +10,9 @@ from app.services.ocr_service import (
     ocr_document,
     OCRProcessingError,
 )
+from app.services.document_extraction import (
+    extract_document_data,
+)
 
 
 @celery_app.task(
@@ -19,25 +22,16 @@ def process_document(document_id: str):
     """
     Asynchronously process an uploaded document.
 
-    Current pipeline:
-        File validation
-            ↓
-        PDF → images (if necessary)
+    Pipeline:
+        MongoDB document
             ↓
         OCR
             ↓
-        Persist raw OCR text
-
-    Future phases:
-        OCR
+        Gemini extraction
             ↓
-        Structured extraction
+        Extraction validation
             ↓
-        Chunking
-            ↓
-        Embeddings
-            ↓
-        FAISS
+        MongoDB update
     """
 
     start_time = time.perf_counter()
@@ -54,7 +48,7 @@ def process_document(document_id: str):
     object_id = ObjectId(document_id)
 
     # ---------------------------------------------------------
-    # 2. Find document
+    # 2. Load document from MongoDB
     # ---------------------------------------------------------
 
     document = documents_collection.find_one(
@@ -75,71 +69,50 @@ def process_document(document_id: str):
         {
             "$set": {
                 "status": DocumentStatus.PROCESSING.value,
-                "processing.stage": "ocr_processing",
-                "processing.error": None,
             }
         },
     )
 
     try:
-        # =====================================================
-        # PHASE 4 — OCR PIPELINE
-        # =====================================================
-
         # -----------------------------------------------------
-        # 4. Get uploaded file path
+        # 4. OCR
         # -----------------------------------------------------
 
-        file_path = document.get("file_path")
-
-        if not file_path:
-            raise OCRProcessingError(
-                "Document does not contain a file path."
-            )
-
-        # -----------------------------------------------------
-        # 5. Run OCR
-        #
-        # For images:
-        #     image → OCR → text
-        #
-        # For PDFs:
-        #     PDF → page images → OCR → text
-        # -----------------------------------------------------
-
-        ocr_result = ocr_document(file_path)
+        ocr_result = ocr_document(
+            document["file_path"]
+        )
 
         raw_text = ocr_result["raw_text"]
         page_count = ocr_result["page_count"]
 
-        # -----------------------------------------------------
-        # 6. Validate OCR output
-        # -----------------------------------------------------
-
-        if not raw_text.strip():
-            raise OCRProcessingError(
-                "OCR completed successfully, but no text "
-                "was detected in the document."
-            )
-
-        # -----------------------------------------------------
-        # 7. Persist raw OCR data
-        # -----------------------------------------------------
-
+        # Save OCR result immediately.
+        #
+        # This is useful because if Gemini fails later,
+        # the OCR output is still preserved in MongoDB.
         documents_collection.update_one(
             {"_id": object_id},
             {
                 "$set": {
                     "ocr.raw_text": raw_text,
                     "ocr.page_count": page_count,
-                    "processing.stage": "ocr_completed",
                 }
             },
         )
 
-        # =====================================================
-        # PHASE 4 COMPLETE
-        # =====================================================
+        # -----------------------------------------------------
+        # 5. Gemini extraction + validation
+        # -----------------------------------------------------
+
+        extraction_result = extract_document_data(
+            raw_text
+        )
+
+        extracted_data = extraction_result["data"]
+        validation = extraction_result["validation"]
+
+        # -----------------------------------------------------
+        # 6. Calculate processing time
+        # -----------------------------------------------------
 
         processing_time_ms = int(
             (time.perf_counter() - start_time) * 1000
@@ -148,24 +121,20 @@ def process_document(document_id: str):
         now = datetime.now(timezone.utc)
 
         # -----------------------------------------------------
-        # 8. Mark document as COMPLETED
-        #
-        # At this phase, COMPLETED means OCR processing
-        # has successfully finished.
-        #
-        # Later phases will extend this pipeline.
+        # 7. Save extraction + validation + COMPLETED
         # -----------------------------------------------------
 
         documents_collection.update_one(
             {"_id": object_id},
             {
                 "$set": {
+                    "extracted_data": extracted_data,
+                    "validation": validation,
                     "status": DocumentStatus.COMPLETED.value,
                     "processing.processed_at": now,
                     "processing.processing_time_ms": (
                         processing_time_ms
                     ),
-                    "processing.stage": "ocr_completed",
                 }
             },
         )
@@ -174,13 +143,12 @@ def process_document(document_id: str):
             "document_id": document_id,
             "status": DocumentStatus.COMPLETED.value,
             "processing_time_ms": processing_time_ms,
-            "ocr_text_length": len(raw_text),
-            "page_count": page_count,
+            "validation": validation,
         }
 
     except Exception as exc:
         # -----------------------------------------------------
-        # 9. Mark document as FAILED
+        # 8. Failure handling
         # -----------------------------------------------------
 
         processing_time_ms = int(
@@ -195,7 +163,6 @@ def process_document(document_id: str):
                     "processing.processing_time_ms": (
                         processing_time_ms
                     ),
-                    "processing.stage": "failed",
                     "processing.error": str(exc),
                 }
             },

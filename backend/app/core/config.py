@@ -1,4 +1,10 @@
+import os
+from typing import Optional
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Ensure .env is loaded into environment variables
+load_dotenv()
 
 
 class Settings(BaseSettings):
@@ -11,6 +17,9 @@ class Settings(BaseSettings):
 
     upload_dir: str = "storage/uploads"
     max_file_size_mb: int = 10
+
+    gemini_api_key: Optional[str] = None
+    gemini_model: str = "gemini-3.5-flash-lite"
 
     model_config = SettingsConfigDict(
         env_file=".env",
