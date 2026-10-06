@@ -40,6 +40,14 @@ class Chunk(BaseModel):
     page: int
 
 
+class ChunkResponse(BaseModel):
+    chunk_id: str
+    document_id: str
+    page: int
+    text: str
+    created_at: Optional[datetime] = None
+
+
 class ProcessingData(BaseModel):
     uploaded_at: datetime
     processed_at: Optional[datetime] = None
@@ -56,10 +64,14 @@ class DocumentResponse(BaseModel):
     file_path: str
     file_size: int
     status: DocumentStatus
+    ocr_status: Optional[str] = "PENDING"
+    extraction_status: Optional[str] = "PENDING"
+    chunking_status: Optional[str] = "PENDING"
+    chunk_count: Optional[int] = 0
     ocr: OCRData
     extracted_data: ExtractedData
     validation: Optional[ValidationData] = None
-    chunks: List[Chunk] = []
+    chunks: Optional[List[Chunk]] = None
     processing: ProcessingData
 
 
