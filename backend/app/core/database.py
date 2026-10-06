@@ -6,6 +6,7 @@ db = client["documind"]
 
 users_collection = db["users"]
 documents_collection = db["documents"]
+document_chunks_collection = db["document_chunks"]
 
 
 def create_indexes() -> None:
@@ -23,4 +24,12 @@ def create_indexes() -> None:
 
     documents_collection.create_index(
         "status",
+    )
+
+    document_chunks_collection.create_index(
+        [
+            ("document_id", 1),
+            ("chunk_id", 1),
+        ],
+        unique=True,
     )

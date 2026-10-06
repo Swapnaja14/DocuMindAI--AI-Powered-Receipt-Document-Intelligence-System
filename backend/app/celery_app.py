@@ -7,6 +7,7 @@ celery_app = Celery(
     include=[
         "app.tasks.test_tasks",
         "app.tasks.document_tasks",
+        "app.tasks.chunking_tasks",
     ],
 )
 

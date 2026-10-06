@@ -14,10 +14,13 @@ from fastapi import (
 
 from app.api.routes.users import get_current_user
 from app.core.config import settings
-from app.core.database import documents_collection
+from app.core.database import db, documents_collection
+from celery import chain
 from app.models.document import DocumentStatus
-from app.schemas.document import DocumentResponse, DocumentListItem
-from app.tasks.document_tasks import process_document
+from app.schemas.document import DocumentResponse, DocumentListItem, ChunkResponse
+from app.repositories.chunk_repository import ChunkRepository
+from app.tasks.document_tasks import process_ocr, extract_document, process_document
+from app.tasks.chunking_tasks import chunk_document
 
 router = APIRouter(
     prefix="/documents",
@@ -101,12 +104,15 @@ async def upload_document(
             "file_path": str(file_path),
             "file_size": file_size,
             "status": DocumentStatus.UPLOADED.value,
+            "ocr_status": "PENDING",
+            "extraction_status": "PENDING",
+            "chunking_status": "PENDING",
+            "chunk_count": 0,
             "ocr": {
                 "raw_text": "",
                 "page_count": 0,
             },
             "extracted_data": {},
-            "chunks": [],
             "processing": {
                 "uploaded_at": now,
                 "processed_at": None,
@@ -121,7 +127,11 @@ async def upload_document(
         document_id = str(result.inserted_id)
 
         try:
-            process_document.delay(document_id)
+            chain(
+                process_ocr.s(document_id),
+                extract_document.s(),
+                chunk_document.s(),
+            ).apply_async()
         except Exception:
             documents_collection.update_one(
                 {"_id": result.inserted_id},
@@ -155,9 +165,13 @@ async def upload_document(
         file_path=document["file_path"],
         file_size=document["file_size"],
         status=DocumentStatus.UPLOADED,
+        ocr_status=document["ocr_status"],
+        extraction_status=document["extraction_status"],
+        chunking_status=document["chunking_status"],
+        chunk_count=document["chunk_count"],
         ocr=document["ocr"],
         extracted_data=document["extracted_data"],
-        chunks=document["chunks"],
+        chunks=document.get("chunks"),
         processing=document["processing"],
     )
 
@@ -225,12 +239,57 @@ def get_document(
         file_path=document["file_path"],
         file_size=document["file_size"],
         status=document["status"],
+        ocr_status=document.get("ocr_status", "PENDING"),
+        extraction_status=document.get("extraction_status", "PENDING"),
+        chunking_status=document.get("chunking_status", "PENDING"),
+        chunk_count=document.get("chunk_count", 0),
         ocr=document["ocr"],
         extracted_data=document["extracted_data"],
-        chunks=document["chunks"],
+        chunks=document.get("chunks"),
         processing=document["processing"],
     )
-  
+
+
+@router.get(
+    "/{document_id}/chunks",
+    response_model=list[ChunkResponse],
+)
+def get_document_chunks(
+    document_id: str,
+    current_user=Depends(get_current_user),
+):
+    if not ObjectId.is_valid(document_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid document ID.",
+        )
+
+    document = documents_collection.find_one(
+        {
+            "_id": ObjectId(document_id),
+            "user_id": current_user["_id"],
+        }
+    )
+
+    if not document:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
+        )
+
+    chunk_repo = ChunkRepository(db)
+    chunks = chunk_repo.get_document_chunks(document_id)
+
+    return [
+        ChunkResponse(
+            chunk_id=c["chunk_id"],
+            document_id=str(c["document_id"]),
+            page=c["page"],
+            text=c["text"],
+            created_at=c.get("created_at"),
+        )
+        for c in chunks
+    ]
 
 
 @router.delete(
@@ -271,6 +330,10 @@ def delete_document(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to delete file: {exc}",
             )
+
+    # Delete chunks from document_chunks collection
+    chunk_repo = ChunkRepository(db)
+    chunk_repo.delete_document_chunks(document_id)
 
     # Delete MongoDB metadata
     documents_collection.delete_one(
