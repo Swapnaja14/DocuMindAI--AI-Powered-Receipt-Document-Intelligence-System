@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional, Any, Dict
 from pydantic import BaseModel
-from app.models.document import DocumentStatus
+from app.models.document import DocumentStatus, VectorStatus
 
 
 class OCRData(BaseModel):
@@ -67,6 +67,7 @@ class DocumentResponse(BaseModel):
     ocr_status: Optional[str] = "PENDING"
     extraction_status: Optional[str] = "PENDING"
     chunking_status: Optional[str] = "PENDING"
+    vector_status: Optional[VectorStatus] = VectorStatus.PENDING
     chunk_count: Optional[int] = 0
     ocr: OCRData
     extracted_data: ExtractedData
@@ -81,4 +82,5 @@ class DocumentListItem(BaseModel):
     file_type: str  
     file_size: int
     status: DocumentStatus
+    vector_status: Optional[VectorStatus] = VectorStatus.PENDING
     uploaded_at: datetime

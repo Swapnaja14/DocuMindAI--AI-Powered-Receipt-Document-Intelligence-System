@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, documents, users
+from app.api.routes import auth, documents, search, users
 from app.core.database import create_indexes
 
 
@@ -37,6 +37,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(documents.router, prefix="/api")
+app.include_router(search.router, prefix="/api")
 
 
 @app.get("/")

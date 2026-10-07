@@ -7,6 +7,7 @@ db = client["documind"]
 users_collection = db["users"]
 documents_collection = db["documents"]
 document_chunks_collection = db["document_chunks"]
+vector_mappings_collection = db["vector_mappings"]
 
 
 def create_indexes() -> None:
@@ -31,5 +32,18 @@ def create_indexes() -> None:
             ("document_id", 1),
             ("chunk_id", 1),
         ],
+        unique=True,
+    )
+
+    vector_mappings_collection.create_index(
+        [
+            ("document_id", 1),
+            ("chunk_id", 1),
+        ],
+        unique=True,
+    )
+
+    vector_mappings_collection.create_index(
+        "faiss_id",
         unique=True,
     )

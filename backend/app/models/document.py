@@ -13,3 +13,10 @@ class DocumentStatus(str, Enum):
     FLAG_FOR_REVIEW = "FLAG_FOR_REVIEW"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+
+
+class VectorStatus(str, Enum):
+    PENDING = "PENDING"
+    INDEXING = "INDEXING"
+    INDEXED = "INDEXED"
+    FAILED = "FAILED"
