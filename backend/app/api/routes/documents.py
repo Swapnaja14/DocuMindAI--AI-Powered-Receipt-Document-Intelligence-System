@@ -107,6 +107,7 @@ async def upload_document(
             "ocr_status": "PENDING",
             "extraction_status": "PENDING",
             "chunking_status": "PENDING",
+            "vector_status": "PENDING",
             "chunk_count": 0,
             "ocr": {
                 "raw_text": "",
@@ -198,6 +199,7 @@ def list_documents(
             file_type=document["file_type"],
             file_size=document["file_size"],
             status=document["status"],
+            vector_status=document.get("vector_status", "PENDING"),
             uploaded_at=document["processing"]["uploaded_at"],
         )
         for document in documents
@@ -242,6 +244,7 @@ def get_document(
         ocr_status=document.get("ocr_status", "PENDING"),
         extraction_status=document.get("extraction_status", "PENDING"),
         chunking_status=document.get("chunking_status", "PENDING"),
+        vector_status=document.get("vector_status", "PENDING"),
         chunk_count=document.get("chunk_count", 0),
         ocr=document["ocr"],
         extracted_data=document["extracted_data"],

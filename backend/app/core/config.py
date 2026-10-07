@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     upload_dir: str = "storage/uploads"
     max_file_size_mb: int = 10
 
+    redis_url: str = "redis://localhost:6379/0"
+    faiss_index_path: str = "storage/faiss/index.faiss"
+
     gemini_api_key: Optional[str] = None
     gemini_model: str = "gemini-3.5-flash-lite"
 
