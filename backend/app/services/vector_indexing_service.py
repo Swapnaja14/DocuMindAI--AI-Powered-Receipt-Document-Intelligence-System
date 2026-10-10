@@ -95,6 +95,4 @@ class VectorIndexingService:
                 mappings
             )
 
-            self.faiss_service.save()
-
         return mappings

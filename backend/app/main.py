@@ -1,18 +1,36 @@
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import auth, documents, search, users
 from app.core.database import create_indexes
+from app.services.faiss_service import FAISSService
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Try to initialize database indexes
+    # Startup: Initialize database indexes
     try:
         create_indexes()
     except Exception as e:
-        print(f"Database initialization note: {e}")
+        logger.warning("Database initialization note: %s", e)
+
+    # Startup: Load and validate persistent FAISS vector index
+    try:
+        faiss_service = FAISSService()
+        status = faiss_service.status()
+        logger.info(
+            "FAISS index loaded at startup: %d vectors, %d mapped chunks (status: %s)",
+            status["total_vectors"],
+            status["mapped_chunks"],
+            "loaded" if status["loaded"] else "uninitialized",
+        )
+    except Exception as e:
+        logger.error("FAISS index startup load failure: %s", e)
+
     yield
     # Shutdown logic if needed
 
@@ -47,4 +65,15 @@ def root():
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy"}
+    faiss_info = {"loaded": False, "total_vectors": 0, "mapped_chunks": 0}
+    try:
+        service = FAISSService()
+        faiss_info = service.status()
+    except Exception as err:
+        faiss_info["error"] = str(err)
+
+    return {
+        "status": "healthy",
+        "faiss": faiss_info,
+    }
+

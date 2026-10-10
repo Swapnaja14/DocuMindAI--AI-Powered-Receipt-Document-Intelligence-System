@@ -14,6 +14,7 @@ class SearchResultItem(BaseModel):
     chunk_id: Union[str, int]
     score: float
     text: str
+    page_number: Optional[int] = None
 
 
 class SearchResponse(BaseModel):

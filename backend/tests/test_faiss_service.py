@@ -10,54 +10,47 @@ if hasattr(sys.stdout, "reconfigure"):
         pass
 
 
-def test_faiss_index():
+def test_faiss_index(tmp_path):
+    index_file = str(tmp_path / "test.index")
+    mapping_file = str(tmp_path / "test_mapping.json")
 
     embedding_service = EmbeddingService()
-
     faiss_service = FAISSService(
-        index_path="storage/faiss/test.index"
+        index_path=index_file,
+        mapping_path=mapping_file,
     )
 
     chunks = [
-        "Wireless mouse ₹799",
-        "USB keyboard ₹1299",
-        "Apple iPhone 15 ₹69999",
+        {"chunk_id": "c0", "text": "Wireless mouse ₹799"},
+        {"chunk_id": "c1", "text": "USB keyboard ₹1299"},
+        {"chunk_id": "c2", "text": "Apple iPhone 15 ₹69999"},
     ]
 
-    embeddings = embedding_service.generate_embeddings(
-        chunks
-    )
+    chunks_for_faiss = [
+        {
+            "chunk_id": chunk["chunk_id"],
+            "embedding": embedding_service.generate_embedding(chunk["text"]),
+        }
+        for chunk in chunks
+    ]
 
-    vector_ids = faiss_service.add_embeddings(
-        embeddings
-    )
+    faiss_service.add_embeddings(chunks_for_faiss)
 
-    assert vector_ids == [0, 1, 2]
-
-    assert faiss_service.count() == 3
+    status = faiss_service.status()
+    assert status["loaded"] is True
+    assert status["total_vectors"] == 3
+    assert status["mapped_chunks"] == 3
 
     query = "computer mouse"
-
-    query_embedding = (
-        embedding_service.generate_embedding(query)
-    )
+    query_embedding = embedding_service.generate_embedding(query)
 
     results = faiss_service.search(
         query_embedding,
-        top_k=2
+        top_k=2,
     )
 
-    print("\nSearch results:")
-
-    for vector_id, score in results:
-        text_preview = chunks[vector_id].encode("ascii", "replace").decode("ascii")
-        print(
-            f"FAISS ID: {vector_id}, "
-            f"Score: {score:.4f}, "
-            f"Text: {text_preview}"
-        )
-
     assert len(results) == 2
-
     # The mouse chunk should be the most relevant.
-    assert results[0][0] == 0
+    assert results[0]["chunk_id"] == "c0"
+    assert results[0]["score"] > 0.4
+
