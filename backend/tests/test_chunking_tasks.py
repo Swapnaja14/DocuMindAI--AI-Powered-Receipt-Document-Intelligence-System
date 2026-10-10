@@ -1,10 +1,9 @@
 import mongomock
 from bson import ObjectId
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from app.tasks.chunking_tasks import chunk_document
 from app.repositories.chunk_repository import ChunkRepository
-from app.repositories.vector_mapping_repository import VectorMappingRepository
 from app.services.faiss_service import FAISSService
 
 # Fix mongomock server version parsing on Windows
@@ -13,6 +12,7 @@ mongomock.mongo_client._get_server_version = lambda: "6.0.0"
 
 def test_chunk_and_index_document_task(tmp_path):
     index_file = str(tmp_path / "test_task.index")
+    mapping_file = str(tmp_path / "test_task.json")
     client = mongomock.MongoClient()
     client._server_version = "6.0.0"
     mock_db = client["documind"]
@@ -29,7 +29,7 @@ def test_chunk_and_index_document_task(tmp_path):
     })
 
     with patch("app.tasks.chunking_tasks.db", mock_db), \
-         patch("app.tasks.chunking_tasks.FAISSService", lambda index_path: FAISSService(index_path=index_file)):
+         patch("app.tasks.chunking_tasks.FAISSService", lambda **kwargs: FAISSService(index_path=index_file, mapping_path=mapping_file)):
 
         result_id = chunk_document(doc_id)
 
@@ -46,12 +46,7 @@ def test_chunk_and_index_document_task(tmp_path):
         chunk_repo = ChunkRepository(mock_db)
         chunks = chunk_repo.get_document_chunks(doc_id)
         assert len(chunks) > 0
-
-        # Verify vector mappings were created
-        mapping_repo = VectorMappingRepository(mock_db)
-        mappings = mapping_repo.get_by_document_id(doc_id)
-        assert len(mappings) == len(chunks)
-        assert mappings[0]["faiss_id"] == 0
+        assert "embedding" in chunks[0]
 
 
 def test_chunk_document_isolated_vector_failure():
@@ -71,7 +66,7 @@ def test_chunk_document_isolated_vector_failure():
 
     # Simulate FAISS indexing failure
     with patch("app.tasks.chunking_tasks.db", mock_db), \
-         patch("app.tasks.chunking_tasks.VectorIndexingService.index_chunks", side_effect=RuntimeError("FAISS disk write error")):
+         patch("app.tasks.chunking_tasks.FAISSService.add_embeddings", side_effect=RuntimeError("FAISS disk write error")):
 
         result_id = chunk_document(doc_id)
 

@@ -35,6 +35,7 @@ def test_end_to_end_production_pipeline(tmp_path):
     """
     # 1. Setup isolated test database and FAISS index
     index_file = str(tmp_path / "e2e_index.faiss")
+    mapping_file = str(tmp_path / "e2e_mapping.json")
     client = mongomock.MongoClient()
     client._server_version = "6.0.0"
     mock_db = client["documind_e2e"]
@@ -44,7 +45,7 @@ def test_end_to_end_production_pipeline(tmp_path):
     chunk_repo = ChunkRepository(mock_db)
     mapping_repo = VectorMappingRepository(mock_db)
     embedding_service = EmbeddingService()
-    faiss_service = FAISSService(index_path=index_file)
+    faiss_service = FAISSService(index_path=index_file, mapping_path=mapping_file)
 
     # 2. Simulate PDF Upload & initial MongoDB Document creation
     sample_pdf = tmp_path / "receipt_electronics.pdf"
@@ -99,7 +100,7 @@ def test_end_to_end_production_pipeline(tmp_path):
          patch("app.tasks.document_tasks.ocr_document", return_value={"raw_text": mock_ocr_text, "page_count": 1}), \
          patch("app.tasks.document_tasks.extract_document_data", return_value={"data": mock_extraction_data, "validation": {"status": "valid"}}), \
          patch("app.tasks.chunking_tasks.db", mock_db), \
-         patch("app.tasks.chunking_tasks.FAISSService", lambda index_path: faiss_service):
+         patch("app.tasks.chunking_tasks.FAISSService", lambda *args, **kwargs: faiss_service):
 
         # --- STEP A: Celery Task 1: OCR ---
         ocr_result_id = process_ocr(doc_id)
@@ -126,23 +127,22 @@ def test_end_to_end_production_pipeline(tmp_path):
     assert final_doc["vector_status"] == VectorStatus.INDEXED.value
     assert final_doc["chunk_count"] > 0
 
-    # 5. Assert MongoDB Chunks & Vector Mappings
+    # 5. Assert MongoDB Chunks & FAISS Index Status
     stored_chunks = chunk_repo.get_document_chunks(doc_id)
     assert len(stored_chunks) == final_doc["chunk_count"]
+    assert stored_chunks[0]["chunk_id"] == f"{doc_id}_0"
+    assert "Sony Bravia" in stored_chunks[0]["text"]
 
-    stored_mappings = mapping_repo.get_by_document_id(doc_id)
-    assert len(stored_mappings) == len(stored_chunks)
-    assert stored_mappings[0]["document_id"] == doc_id
-    assert stored_mappings[0]["chunk_id"] == f"{doc_id}_0"
-
-    # 6. Assert FAISS vector count & disk persistence
-    assert faiss_service.count() == len(stored_chunks)
+    # 6. Assert FAISS vector count & disk mapping consistency
+    status = faiss_service.status()
+    assert status["loaded"] is True
+    assert status["total_vectors"] == len(stored_chunks)
+    assert status["mapped_chunks"] == len(stored_chunks)
 
     # 7. Execute POST /api/search with query "What did I buy?"
     search_service = VectorSearchService(
         embedding_service=embedding_service,
         faiss_service=faiss_service,
-        vector_mapping_repository=mapping_repo,
         chunk_repository=chunk_repo,
     )
     app.dependency_overrides[get_vector_search_service] = lambda: search_service

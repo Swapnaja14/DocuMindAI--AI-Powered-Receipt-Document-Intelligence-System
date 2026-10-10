@@ -1,9 +1,24 @@
+import hashlib
+import numpy as np
 import mongomock
 from concurrent.futures import ThreadPoolExecutor
 from app.repositories.vector_mapping_repository import VectorMappingRepository
-from app.services.embedding_service import EmbeddingService
 from app.services.faiss_service import FAISSService
 from app.services.vector_indexing_service import VectorIndexingService
+
+
+class FastMockEmbeddingService:
+    def generate_embeddings(self, texts: list[str]) -> list[list[float]]:
+        results = []
+        for t in texts:
+            seed = int(hashlib.md5(t.encode("utf-8")).hexdigest()[:8], 16)
+            rng = np.random.RandomState(seed)
+            vec = rng.randn(384).astype("float32")
+            norm = np.linalg.norm(vec)
+            if norm > 0:
+                vec = vec / norm
+            results.append(vec.tolist())
+        return results
 
 
 def test_concurrent_vector_indexing(tmp_path):
@@ -12,7 +27,7 @@ def test_concurrent_vector_indexing(tmp_path):
     client._server_version = "6.0.0"
     db = client["documind_test"]
 
-    embedding_service = EmbeddingService()
+    embedding_service = FastMockEmbeddingService()
     mapping_repo = VectorMappingRepository(db)
 
     def worker_index_doc(doc_num: int):
