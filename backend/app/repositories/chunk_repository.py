@@ -90,6 +90,22 @@ class ChunkRepository:
             "chunk_id": chunk_id,
         })
 
+    def get_by_ids(self, chunk_ids: List[str]) -> List[Dict[str, Any]]:
+        """
+        Retrieve multiple chunks matching either string chunk_id or ObjectId.
+        """
+        if not chunk_ids:
+            return []
+
+        object_ids = [
+            ObjectId(cid) for cid in chunk_ids if ObjectId.is_valid(cid)
+        ]
+        conditions: List[Dict[str, Any]] = [{"chunk_id": {"$in": chunk_ids}}]
+        if object_ids:
+            conditions.append({"_id": {"$in": object_ids}})
+
+        return list(self.collection.find({"$or": conditions}))
+
     def get_chunks_with_embeddings(self) -> List[Dict[str, Any]]:
         """
         Return all chunks that have valid embeddings.
