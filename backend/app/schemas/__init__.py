@@ -1,4 +1,31 @@
 """Schemas package."""
-from app.schemas.search import SearchRequest, SearchResponse, SearchResultItem
+from app.schemas.search import (
+    SearchMode,
+    FilterSearchRequest,
+    FilterSearchResponse,
+    StructuredReceiptItem,
+    SemanticSearchRequest,
+    SemanticSearchResponse,
+    SemanticSearchResultItem,
+    SearchRequest,
+    SearchResponse,
+    SearchResultItem,
+)
+from app.schemas.rag import RAGAskRequest, RAGAskResponse, RAGSource, RetrievalMetadata
 
-__all__ = ["SearchRequest", "SearchResponse", "SearchResultItem"]
+__all__ = [
+    "SearchMode",
+    "FilterSearchRequest",
+    "FilterSearchResponse",
+    "StructuredReceiptItem",
+    "SemanticSearchRequest",
+    "SemanticSearchResponse",
+    "SemanticSearchResultItem",
+    "SearchRequest",
+    "SearchResponse",
+    "SearchResultItem",
+    "RAGAskRequest",
+    "RAGAskResponse",
+    "RAGSource",
+    "RetrievalMetadata",
+]
