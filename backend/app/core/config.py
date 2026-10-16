@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     max_file_size_mb: int = 10
 
     redis_url: str = "redis://localhost:6379/0"
+    redis_cache_ttl_seconds: int = 600
+    redis_enabled: bool = True
     faiss_index_path: str = "storage/faiss/index.faiss"
 
     gemini_api_key: Optional[str] = None

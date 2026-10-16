@@ -13,6 +13,11 @@ from app.schemas.rag import (
     RAGSource,
     RetrievalMetadata,
 )
+from app.services.cache_service import (
+    cache_answer,
+    get_cached_answer,
+    make_cache_key,
+)
 from app.services.embedding_service import EmbeddingService
 from app.services.faiss_service import FAISSService
 from app.services.rag_answer_service import RAGAnswerService
@@ -67,7 +72,20 @@ async def ask_question(
     else:
         user_id = str(getattr(current_user, "_id", ""))
 
-    # 2. Retrieve relevant chunks for this user (enforces multi-tenant scoping).
+    # 2. Check Redis cache
+    cache_key = make_cache_key(
+        user_id=user_id,
+        query=request.question,
+        context={
+            "top_k": request.top_k,
+        },
+    )
+
+    cached = await get_cached_answer(cache_key)
+    if cached is not None:
+        return RAGAskResponse(**cached)
+
+    # 3. Retrieve relevant chunks for this user (enforces multi-tenant scoping).
     try:
         chunks = await retriever.retrieve(
             question=request.question,
@@ -81,7 +99,7 @@ async def ask_question(
             detail="Failed to retrieve document evidence.",
         ) from exc
 
-    # 3. Fail closed if there is no useful evidence.
+    # 4. Fail closed if there is no useful evidence.
     if not chunks:
         return RAGAskResponse(
             answer=(
@@ -95,10 +113,10 @@ async def ask_question(
             ),
         )
 
-    # 4. Construct context and source metadata.
+    # 5. Construct context and source metadata.
     context, sources = build_context(chunks)
 
-    # 5. Ask Gemini to answer from the retrieved evidence.
+    # 6. Ask Gemini to answer from the retrieved evidence.
     try:
         result = await answer_service.answer(
             question=request.question,
@@ -135,7 +153,7 @@ async def ask_question(
                 detail="Unable to generate a valid grounded answer.",
             ) from exc
 
-    # 6. Validate the model-generated source labels.
+    # 7. Validate the model-generated source labels.
     cited_sources = validate_citations(
         result.get("citations", []),
         sources,
@@ -154,8 +172,8 @@ async def ask_question(
             ),
         )
 
-    # 7. Convert validated evidence to the public response.
-    return RAGAskResponse(
+    # 8. Convert validated evidence to the public response.
+    response = RAGAskResponse(
         answer=result["answer"],
         sources=[
             RAGSource(**{
@@ -175,3 +193,9 @@ async def ask_question(
             sources_used=len(cited_sources),
         ),
     )
+
+    # 9. Cache successful grounded answer
+    response_data = response.model_dump(mode="json")
+    await cache_answer(cache_key, response_data)
+
+    return response

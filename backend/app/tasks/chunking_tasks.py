@@ -5,6 +5,7 @@ from app.celery_app import celery_app
 from app.core.database import db
 from app.models.document import DocumentStatus, VectorStatus
 from app.repositories.chunk_repository import ChunkRepository
+from app.services.cache_service import invalidate_user_cache_sync
 from app.services.chunking_service import chunk_text
 from app.services.embedding_service import EmbeddingService
 from app.services.faiss_service import FAISSService
@@ -110,6 +111,11 @@ def chunk_document(self, document_id):
                 },
             },
         )
+
+        # 6. Invalidate RAG cache for document owner after chunks and vectors are ready
+        user_id = str(document.get("user_id")) if document.get("user_id") else None
+        if user_id:
+            invalidate_user_cache_sync(user_id)
 
         return str(document_id)
 

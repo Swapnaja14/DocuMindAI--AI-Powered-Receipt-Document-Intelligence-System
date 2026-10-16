@@ -19,6 +19,7 @@ from celery import chain
 from app.models.document import DocumentStatus
 from app.schemas.document import DocumentResponse, DocumentListItem, ChunkResponse
 from app.repositories.chunk_repository import ChunkRepository
+from app.services.cache_service import invalidate_user_cache
 from app.tasks.document_tasks import process_ocr, extract_document, process_document
 from app.tasks.chunking_tasks import chunk_document
 
@@ -299,7 +300,7 @@ def get_document_chunks(
     "/{document_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-def delete_document(
+async def delete_document(
     document_id: str,
     current_user=Depends(get_current_user)
 ):
@@ -345,3 +346,11 @@ def delete_document(
             "user_id": current_user["_id"],
         }
     )
+
+    # Invalidate user RAG cache
+    user_id = (
+        str(current_user.id)
+        if hasattr(current_user, "id")
+        else str(current_user.get("_id") or current_user.get("id"))
+    )
+    await invalidate_user_cache(user_id)

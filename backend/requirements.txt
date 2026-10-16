@@ -31,7 +31,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.3
 python-multipart==0.0.32
 PyYAML==6.0.3
-redis==6.4.0
+redis[hiredis]>=5.0,<7.0
 six==1.17.0
 starlette==1.6.0
 typing-inspection==0.4.4
@@ -42,6 +42,7 @@ uvicorn==0.52.4
 vine==5.1.0
 watchfiles==1.2.0
 wcwidth==0.8.3
-websockets==17.1
+websockets==16.1.1
 faiss-cpu
 numpy
+pytest-asyncio
