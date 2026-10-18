@@ -1,48 +1,75 @@
-amqp==5.3.1
-annotated-doc==0.0.5
-annotated-types==0.8.0
+# Core Web Framework & Server
+fastapi==0.141.1
+starlette==1.6.0
+uvicorn==0.52.4
+watchfiles==1.2.0
+httptools==0.8.0
+python-multipart==0.0.32
+email-validator==2.3.0
 anyio==4.15.1
+h11==0.16.0
+websockets==16.1.1
+
+# Configuration & Environment
+pydantic==2.13.5
+pydantic-settings==2.15.0
+pydantic_core==2.46.5
+python-dotenv==1.2.3
+PyYAML==6.0.3
+
+# Authentication & Cryptography
 argon2-cffi==25.1.0
 argon2-cffi-bindings==26.1.0
-billiard==4.2.4
-celery==5.6.3
+pwdlib==0.3.1
+PyJWT==2.14.0
 cffi==2.1.1
+pycparser==3.0
+
+# Database & Caching
+pymongo==4.18.1
+dnspython==2.8.0
+redis==6.4.0
+hiredis==3.5.0
+
+# Distributed Tasks & Queue
+celery==5.6.3
+kombu==5.6.2
+amqp==5.3.1
+billiard==4.2.4
+vine==5.1.0
 click==8.5.0
 click-didyoumean==0.3.1
 click-plugins==1.1.1.2
 click-repl==0.4.0
-dnspython==2.8.0
-email-validator==2.3.0
-fastapi==0.141.1
-h11==0.16.0
-httptools==0.8.0
-idna==3.19
-kombu==5.6.2
-packaging==26.3
 prompt_toolkit==3.0.53
-pwdlib==0.3.1
-pycparser==3.0
-pydantic==2.13.5
-pydantic-settings==2.15.0
-pydantic_core==2.46.5
-PyJWT==2.14.0
-pymongo==4.18.1
+wcwidth==0.8.3
+
+# Vector Search & Embeddings
+faiss-cpu==1.15.1
+numpy==2.5.3
+sentence-transformers==6.1.0
+
+# Document Processing & OCR
+pymupdf==1.28.2
+pillow==12.3.0
+pytesseract==0.3.13
+
+# GenAI & LLM Services
+google-genai==2.25.0
+
+# Date, Time, & Utilities
 python-dateutil==2.9.0.post0
-python-dotenv==1.2.3
-python-multipart==0.0.32
-PyYAML==6.0.3
-redis[hiredis]>=5.0,<7.0
-six==1.17.0
-starlette==1.6.0
-typing-inspection==0.4.4
-typing_extensions==4.16.0
 tzdata==2026.4
 tzlocal==5.4.4
-uvicorn==0.52.4
-vine==5.1.0
-watchfiles==1.2.0
-wcwidth==0.8.3
-websockets==16.1.1
-faiss-cpu
-numpy
-pytest-asyncio
+six==1.17.0
+idna==3.19
+packaging==26.3
+annotated-doc==0.0.5
+annotated-types==0.8.0
+typing-inspection==0.4.4
+typing_extensions==4.16.0
+
+# Testing & Quality
+pytest==9.1.1
+pytest-asyncio==1.4.0
+mongomock==4.3.0

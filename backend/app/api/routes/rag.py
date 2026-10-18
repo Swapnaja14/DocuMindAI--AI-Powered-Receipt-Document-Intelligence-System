@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.api.routes.search import get_embedding_service, get_faiss_service
 from app.api.routes.users import get_current_user
 from app.core.database import db
+from app.core.rate_limiter import rate_limit_rag
 from app.repositories.chunk_repository import ChunkRepository
 from app.repositories.document_repository import DocumentRepository
 from app.schemas.rag import (
@@ -61,7 +62,11 @@ def get_rag_answer_service() -> RAGAnswerService:
     return _rag_answer_service
 
 
-@router.post("/ask", response_model=RAGAskResponse)
+@router.post(
+    "/ask",
+    response_model=RAGAskResponse,
+    dependencies=[Depends(rate_limit_rag)],
+)
 async def ask_question(
     request: RAGAskRequest,
     current_user=Depends(get_current_user),
@@ -312,7 +317,9 @@ async def ask_question(
 
 
 @router.get("/cache/metrics")
-async def get_rag_cache_metrics():
+async def get_rag_cache_metrics(
+    current_user: dict = Depends(get_current_user),
+):
     """Return operational metrics and hit-ratio report for the RAG cache."""
     return {
         "summary": cache_metrics.get_summary(),
