@@ -1,13 +1,7 @@
 import React from 'react';
 import './Card.css';
 
-interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
-  children: React.ReactNode;
-  variant?: 'glass' | 'solid';
-  glow?: boolean;
-}
-
-export const Card: React.FC<CardProps> = ({
+export const Card = ({
   children,
   variant = 'glass',
   glow = false,

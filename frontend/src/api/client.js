@@ -1,11 +1,9 @@
-import type { ApiError } from '../types/auth';
-
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 // In-memory token storage (with sessionStorage sync to preserve active sessions across tabs/refreshes)
-let activeToken: string | null = sessionStorage.getItem('documind_token');
+let activeToken = sessionStorage.getItem('documind_token');
 
-export const setAuthToken = (token: string | null) => {
+export const setAuthToken = (token) => {
   activeToken = token;
   if (token) {
     sessionStorage.setItem('documind_token', token);
@@ -14,18 +12,15 @@ export const setAuthToken = (token: string | null) => {
   }
 };
 
-export const getAuthToken = (): string | null => {
+export const getAuthToken = () => {
   return activeToken || sessionStorage.getItem('documind_token');
 };
 
-export async function apiClient<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
+export async function apiClient(endpoint, options = {}) {
   const token = getAuthToken();
-  const headers: Record<string, string> = {
+  const headers = {
     'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string> || {}),
+    ...(options.headers || {}),
   };
 
   if (token) {
@@ -37,7 +32,9 @@ export async function apiClient<T>(
     delete headers['Content-Type'];
   }
 
-  const url = endpoint.startsWith('http') ? endpoint : `${BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  const url = endpoint.startsWith('http')
+    ? endpoint
+    : `${BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
   try {
     const response = await fetch(url, {
@@ -47,10 +44,10 @@ export async function apiClient<T>(
 
     // Handle 204 No Content
     if (response.status === 204) {
-      return {} as T;
+      return {};
     }
 
-    let data: any = null;
+    let data = null;
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
       data = await response.json();
@@ -67,7 +64,7 @@ export async function apiClient<T>(
           errorMessage = data.detail;
         } else if (Array.isArray(data.detail)) {
           // Format FastAPI validation error details
-          errorMessage = data.detail.map((d: any) => d.msg || JSON.stringify(d)).join(', ');
+          errorMessage = data.detail.map((d) => d.msg || JSON.stringify(d)).join(', ');
         }
       } else if (data && data.message) {
         errorMessage = data.message;
@@ -78,7 +75,7 @@ export async function apiClient<T>(
         window.dispatchEvent(new CustomEvent('documind:unauthorized'));
       }
 
-      const error: ApiError = {
+      const error = {
         message: errorMessage,
         status: response.status,
         detail: data?.detail,
@@ -86,8 +83,8 @@ export async function apiClient<T>(
       throw error;
     }
 
-    return data as T;
-  } catch (error: any) {
+    return data;
+  } catch (error) {
     if (error.status) {
       throw error;
     }
@@ -95,6 +92,6 @@ export async function apiClient<T>(
     throw {
       message: error.message || 'Network connection error. Please ensure the backend server is running.',
       status: 0,
-    } as ApiError;
+    };
   }
 }

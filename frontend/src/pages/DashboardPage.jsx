@@ -14,19 +14,19 @@ import {
 import { apiClient } from '../api/client';
 import './DashboardPage.css';
 
-export const DashboardPage: React.FC = () => {
+export const DashboardPage = () => {
   const { user } = useAuth();
-  const [healthStatus, setHealthStatus] = useState<string>('checking...');
-  const [isHealthReady, setIsHealthReady] = useState<boolean | null>(null);
+  const [healthStatus, setHealthStatus] = useState('checking...');
+  const [isHealthReady, setIsHealthReady] = useState(null);
 
   useEffect(() => {
     // Check backend readiness probe
     const checkSystemHealth = async () => {
       try {
-        const res = await apiClient<{ status: string }>('/health/ready');
+        const res = await apiClient('/health/ready');
         setHealthStatus(res.status === 'ready' ? 'Operational' : 'Degraded');
         setIsHealthReady(res.status === 'ready');
-      } catch (err) {
+      } catch {
         setHealthStatus('Offline / Unreachable');
         setIsHealthReady(false);
       }

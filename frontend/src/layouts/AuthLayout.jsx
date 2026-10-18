@@ -3,7 +3,7 @@ import { Card } from '../components/ui/Card';
 import { FileText, Sparkles, ShieldCheck, Zap } from 'lucide-react';
 import './AuthLayout.css';
 
-export const AuthLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthLayout = ({ children }) => {
   return (
     <div className="auth-layout-container">
       {/* Dynamic Ambient Background Glows */}

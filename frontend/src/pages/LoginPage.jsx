@@ -1,11 +1,11 @@
 import React from 'react';
 import { AuthLayout } from '../layouts/AuthLayout';
-import { RegisterForm } from '../features/auth/RegisterForm';
+import { LoginForm } from '../features/auth/LoginForm';
 
-export const RegisterPage: React.FC = () => {
+export const LoginPage = () => {
   return (
     <AuthLayout>
-      <RegisterForm />
+      <LoginForm />
     </AuthLayout>
   );
 };

@@ -6,18 +6,18 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import './AuthForms.css';
 
-export const LoginForm: React.FC = () => {
+export const LoginForm = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
+  const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const validate = (): boolean => {
-    const newErrors: { email?: string; password?: string } = {};
+  const validate = () => {
+    const newErrors = {};
 
     if (!email.trim()) {
       newErrors.email = 'Email address is required';
@@ -35,7 +35,7 @@ export const LoginForm: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
@@ -44,9 +44,9 @@ export const LoginForm: React.FC = () => {
 
     try {
       await login({ email: email.trim(), password });
-      const from = (location.state as any)?.from?.pathname || '/dashboard';
+      const from = location.state?.from?.pathname || '/dashboard';
       navigate(from, { replace: true });
-    } catch (err: any) {
+    } catch (err) {
       setErrors({
         general: err.message || 'Login failed. Please verify your credentials and try again.',
       });

@@ -7,7 +7,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
 
-export const App: React.FC = () => {
+export const App = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
