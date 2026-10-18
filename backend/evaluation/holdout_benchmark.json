@@ -1,0 +1,183 @@
+{
+  "name": "holdout_benchmark",
+  "version": "1.0.0",
+  "description": "Holdout evaluation benchmark covering 16 distinct test questions across 8 categories for unbiased RAG evaluation",
+  "items": [
+    {
+      "id": "HOLD_DL_01",
+      "category": "direct_lookup",
+      "question": "What account ID is printed on the Amazon Web Services bill?",
+      "expected_answer": "The AWS Account ID is 9482-1049-3321.",
+      "supporting_document_ids": ["doc_saas_aws"],
+      "evidence_snippets": ["Account ID: 9482-1049-3321"],
+      "key_entities": {"account_id": "9482-1049-3321", "vendor": "Amazon Web Services"},
+      "should_abstain": false,
+      "evaluation_criteria": "Must accurately extract '9482-1049-3321'."
+    },
+    {
+      "id": "HOLD_DL_02",
+      "category": "direct_lookup",
+      "question": "What warranty service was included on the Dell invoice?",
+      "expected_answer": "Dell 3-Year ProSupport Plus Warranty was included for $250.00.",
+      "supporting_document_ids": ["doc_hardware_dell"],
+      "evidence_snippets": ["Dell 3-Year ProSupport Plus Warranty - $250.00"],
+      "key_entities": {"warranty": "Dell 3-Year ProSupport Plus Warranty", "price": 250.00},
+      "should_abstain": false,
+      "evaluation_criteria": "Must identify '3-Year ProSupport Plus Warranty' or 'Dell 3-Year ProSupport Plus Warranty'."
+    },
+    {
+      "id": "HOLD_NL_01",
+      "category": "numeric_lookup",
+      "question": "How much was the 25ft Magnetic Tape Measure at Home Depot?",
+      "expected_answer": "The 25ft Magnetic Tape Measure cost $14.97.",
+      "supporting_document_ids": ["doc_hardware_homedepot"],
+      "evidence_snippets": ["08442109 25ft Magnetic Tape Measure: $14.97"],
+      "key_entities": {"item": "25ft Magnetic Tape Measure", "price": 14.97, "currency": "USD"},
+      "should_abstain": false,
+      "evaluation_criteria": "Must accurately state $14.97."
+    },
+    {
+      "id": "HOLD_NL_02",
+      "category": "numeric_lookup",
+      "question": "What was the CGST tax component on the BestBuy receipt?",
+      "expected_answer": "The CGST (9%) tax amount was INR 665.82.",
+      "supporting_document_ids": ["doc_tech_bestbuy"],
+      "evidence_snippets": ["CGST (9%): INR 665.82"],
+      "key_entities": {"tax_component": "CGST", "amount": 665.82, "currency": "INR"},
+      "should_abstain": false,
+      "evaluation_criteria": "Must specify 665.82 INR for CGST."
+    },
+    {
+      "id": "HOLD_ER_01",
+      "category": "expense_ranking",
+      "question": "Which grocery item was the most expensive single purchase at Whole Foods?",
+      "expected_answer": "The Organic Hass Avocados 4pk was the most expensive grocery item at $5.99.",
+      "supporting_document_ids": ["doc_grocery_wholefoods"],
+      "evidence_snippets": ["Organic Hass Avocados 4pk - $5.99"],
+      "key_entities": {"item": "Organic Hass Avocados", "price": 5.99, "currency": "USD"},
+      "should_abstain": false,
+      "evaluation_criteria": "Must identify Organic Hass Avocados at $5.99."
+    },
+    {
+      "id": "HOLD_ER_02",
+      "category": "expense_ranking",
+      "question": "What was the highest individual service charge on the AWS invoice?",
+      "expected_answer": "The highest service charge was for Amazon Elastic Compute Cloud (EC2) at $52.00.",
+      "supporting_document_ids": ["doc_saas_aws"],
+      "evidence_snippets": ["Amazon Elastic Compute Cloud (EC2): $52.00"],
+      "key_entities": {"service": "Amazon Elastic Compute Cloud (EC2)", "amount": 52.00, "currency": "USD"},
+      "should_abstain": false,
+      "evaluation_criteria": "Must identify EC2 at $52.00."
+    },
+    {
+      "id": "HOLD_AG_01",
+      "category": "aggregation",
+      "question": "What was the total cost of all items purchased at Home Depot before tax?",
+      "expected_answer": "The subtotal before tax was $143.94.",
+      "supporting_document_ids": ["doc_hardware_homedepot"],
+      "evidence_snippets": ["SUBTOTAL: $143.94"],
+      "key_entities": {"subtotal": 143.94, "currency": "USD"},
+      "should_abstain": false,
+      "evaluation_criteria": "Must specify $143.94."
+    },
+    {
+      "id": "HOLD_AG_02",
+      "category": "aggregation",
+      "question": "What is the combined cost of the two user seats for GitHub Enterprise Team?",
+      "expected_answer": "The combined cost for the two user seats is $20.00 ($10.00 per seat).",
+      "supporting_document_ids": ["doc_saas_github"],
+      "evidence_snippets": ["GitHub Enterprise Team (2 user seats @ $10.00/seat): $20.00"],
+      "key_entities": {"total_seats_cost": 20.00, "quantity": 2, "unit_price": 10.00},
+      "should_abstain": false,
+      "evaluation_criteria": "Must state $20.00."
+    },
+    {
+      "id": "HOLD_DF_01",
+      "category": "date_filtering",
+      "question": "What was the total amount spent on my single transaction on October 4, 2026?",
+      "expected_answer": "The transaction on October 4, 2026 was at The Home Depot for $148.80.",
+      "supporting_document_ids": ["doc_hardware_homedepot"],
+      "evidence_snippets": ["Date: 2026-10-04 16:42", "TOTAL: $148.80"],
+      "key_entities": {"vendor": "The Home Depot", "date": "2026-10-04", "total": 148.80},
+      "should_abstain": false,
+      "evaluation_criteria": "Must identify Home Depot and $148.80 on October 4, 2026."
+    },
+    {
+      "id": "HOLD_DF_02",
+      "category": "date_filtering",
+      "question": "Which purchases occurred between September 20 and September 30, 2026?",
+      "expected_answer": "Three purchases occurred in this window: Whole Foods on September 22 ($19.57), Staples on September 28 (INR 2,462.88), and AWS on September 30 ($84.50).",
+      "supporting_document_ids": ["doc_grocery_wholefoods", "doc_office_staples", "doc_saas_aws"],
+      "evidence_snippets": ["Date: 2026-09-22", "Date: 2026-09-28", "Invoice Date: 2026-09-30"],
+      "key_entities": {"vendors": ["Whole Foods Market", "Staples Office Supplies", "Amazon Web Services"]},
+      "should_abstain": false,
+      "evaluation_criteria": "Must identify Whole Foods, Staples, and AWS while excluding earlier September or October dates."
+    },
+    {
+      "id": "HOLD_MD_01",
+      "category": "multi_document",
+      "question": "Which invoices were charged to Corporate Amex ending in 1004?",
+      "expected_answer": "Two invoices were charged to Corporate Amex 1004: Amazon Web Services (AWS-2026-09-881 for $84.50) and GitHub (GH-99318 for $39.00).",
+      "supporting_document_ids": ["doc_saas_aws", "doc_saas_github"],
+      "evidence_snippets": ["Corporate Amex ending in 1004", "Corporate Amex ending in 1004"],
+      "key_entities": {"vendors": ["Amazon Web Services", "GitHub, Inc."]},
+      "should_abstain": false,
+      "evaluation_criteria": "Must name both AWS and GitHub as having used Corporate Amex 1004."
+    },
+    {
+      "id": "HOLD_MD_02",
+      "category": "multi_document",
+      "question": "Compare the return policy stated on the BestBuy receipt with any return policy on the Dell invoice.",
+      "expected_answer": "BestBuy states a 14-day return policy with the original receipt, whereas the Dell invoice does not list any return policy (it lists payment terms).",
+      "supporting_document_ids": ["doc_tech_bestbuy", "doc_hardware_dell"],
+      "evidence_snippets": ["Return Policy: 14 days with original receipt."],
+      "key_entities": {"bestbuy_policy": "14 days with original receipt"},
+      "should_abstain": false,
+      "evaluation_criteria": "Must identify BestBuy's 14-day return policy and contrast it with Dell's absence of return terms."
+    },
+    {
+      "id": "HOLD_MI_01",
+      "category": "missing_information",
+      "question": "What is the customer's driver's license number on the BestBuy receipt?",
+      "expected_answer": "The BestBuy receipt does not contain a driver's license number.",
+      "supporting_document_ids": ["doc_tech_bestbuy"],
+      "evidence_snippets": ["BESTBUY ELECTRONICS INDIA PVT LTD"],
+      "key_entities": {},
+      "should_abstain": true,
+      "evaluation_criteria": "Must abstain and state that driver's license is not present on the receipt."
+    },
+    {
+      "id": "HOLD_MI_02",
+      "category": "missing_information",
+      "question": "What is the courier package tracking number for the Staples supplies order?",
+      "expected_answer": "The Staples document lists an Order / Invoice ID (STP-5521) but does not contain a courier tracking number.",
+      "supporting_document_ids": ["doc_office_staples"],
+      "evidence_snippets": ["Order / Invoice ID: STP-5521"],
+      "key_entities": {},
+      "should_abstain": true,
+      "evaluation_criteria": "Must abstain and state that no tracking number is available."
+    },
+    {
+      "id": "HOLD_AQ_01",
+      "category": "ambiguous_question",
+      "question": "How much did the charging cable cost?",
+      "expected_answer": "The USB-C Fast Charging Cable 2m cost INR 899.00 at BestBuy.",
+      "supporting_document_ids": ["doc_tech_bestbuy"],
+      "evidence_snippets": ["USB-C Fast Charging Cable 2m - Qty: 1 - INR 899.00"],
+      "key_entities": {"price": 899.00, "currency": "INR"},
+      "should_abstain": false,
+      "evaluation_criteria": "Must identify INR 899.00 and specify it was at BestBuy."
+    },
+    {
+      "id": "HOLD_AQ_02",
+      "category": "ambiguous_question",
+      "question": "What was my coffee bill?",
+      "expected_answer": "The coffee bill was $14.25 at Starbucks, which included a Caffe Latte ($5.25), Iced Caramel Macchiato ($5.75), and Butter Croissant ($3.25).",
+      "supporting_document_ids": ["doc_dining_starbucks"],
+      "evidence_snippets": ["Total: $14.25", "1 Caffe Latte Grande: $5.25", "1 Iced Caramel Macchiato Venti: $5.75"],
+      "key_entities": {"total": 14.25, "currency": "USD"},
+      "should_abstain": false,
+      "evaluation_criteria": "Must state $14.25 at Starbucks and itemize the drinks if asked."
+    }
+  ]
+}

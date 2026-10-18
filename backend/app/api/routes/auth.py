@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.api.routes.users import get_current_user
 from app.core.database import users_collection
+from app.core.rate_limiter import rate_limit_logins
 from app.core.security import (
     create_access_token,
     hash_password,
@@ -66,6 +68,7 @@ def register(user_data: UserCreate):
 @router.post(
     "/login",
     response_model=TokenResponse,
+    dependencies=[Depends(rate_limit_logins)],
 )
 def login(credentials: LoginRequest):
     email = credentials.email.lower()
@@ -94,3 +97,21 @@ def login(credentials: LoginRequest):
         access_token=access_token,
         token_type="bearer",
     )
+
+
+@router.post(
+    "/logout",
+    status_code=status.HTTP_200_OK,
+)
+async def logout(current_user=Depends(get_current_user)):
+    user_id = (
+        str(current_user.id)
+        if hasattr(current_user, "id")
+        else str(current_user.get("_id") or current_user.get("id"))
+    )
+    from app.services.cache_service import invalidate_user_cache
+    try:
+        await invalidate_user_cache(user_id)
+    except Exception:
+        pass
+    return {"message": "Successfully logged out"}

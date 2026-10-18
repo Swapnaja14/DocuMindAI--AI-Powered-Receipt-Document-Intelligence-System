@@ -1,9 +1,15 @@
 from celery import Celery
+from app.core.config import settings
+
+broker_url = settings.celery_broker_url or settings.redis_url
+backend_url = settings.celery_result_backend or (
+    settings.redis_url.rsplit("/", 1)[0] + "/1" if "/" in settings.redis_url else settings.redis_url
+)
 
 celery_app = Celery(
     "documind",
-    broker="redis://localhost:6379/0",
-    backend="redis://localhost:6379/1",
+    broker=broker_url,
+    backend=backend_url,
     include=[
         "app.tasks.test_tasks",
         "app.tasks.document_tasks",

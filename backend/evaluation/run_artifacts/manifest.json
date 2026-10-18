@@ -1,0 +1,8 @@
+{
+  "version": "193e9447153a4dae8255430c46fe5085",
+  "timestamp": "2026-10-18T15:04:07.965519+00:00",
+  "total_vectors": 8,
+  "mapped_chunks": 8,
+  "index_file": "eval_chunks.index",
+  "mapping_file": "eval_mapping.json"
+}

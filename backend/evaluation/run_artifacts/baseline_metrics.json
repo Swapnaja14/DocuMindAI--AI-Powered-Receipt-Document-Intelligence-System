@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-10-18T15:33:40.130722+00:00",
+  "corpus_documents": 8,
+  "dev_benchmark_questions": 32,
+  "holdout_benchmark_questions": 16,
+  "extraction_accuracy": 1.0,
+  "arithmetic_consistency": 1.0,
+  "dev_recall_at_5": 0.888,
+  "dev_precision_at_5": 0.3115,
+  "dev_mrr_at_5": 0.7812,
+  "dev_recall_at_8": 0.9297,
+  "dev_precision_at_8": 0.2574,
+  "holdout_recall_at_5": 0.9792,
+  "holdout_precision_at_5": 0.2406,
+  "holdout_mrr_at_5": 0.8802,
+  "citation_grounding_accuracy": 1.0,
+  "ownership_accuracy": 1.0,
+  "abstention_accuracy": 1.0,
+  "numeric_date_fidelity": 1.0,
+  "mean_retrieval_latency_ms": 71.99,
+  "estimated_context_tokens_avg": 735.2
+}

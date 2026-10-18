@@ -1,8 +1,11 @@
+import io
 import os
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+import fitz
+from PIL import Image
 from bson import ObjectId
 from fastapi import (
     APIRouter,
@@ -15,6 +18,7 @@ from fastapi import (
 from app.api.routes.users import get_current_user
 from app.core.config import settings
 from app.core.database import db, documents_collection
+from app.core.rate_limiter import rate_limit_uploads
 from celery import chain
 from app.models.document import DocumentStatus
 from app.schemas.document import DocumentResponse, DocumentListItem, ChunkResponse
@@ -38,16 +42,76 @@ ALLOWED_FILE_TYPES = {
 MAX_FILE_SIZE = settings.max_file_size_mb * 1024 * 1024
 
 
+def validate_file_content(contents: bytes, declared_content_type: str) -> str:
+    """
+    Validates magic bytes and structural integrity of uploaded files.
+    Returns normalized extension ('pdf', 'png', 'jpg') or raises HTTPException(400).
+    """
+    if not contents or len(contents) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is empty.",
+        )
+
+    # 1. PDF Verification
+    if contents.startswith(b"%PDF-"):
+        try:
+            doc = fitz.open(stream=contents, filetype="pdf")
+            page_count = doc.page_count
+            doc.close()
+            if page_count == 0:
+                raise ValueError("PDF document has 0 pages.")
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Malformed or unreadable PDF document: {exc}",
+            )
+        return "pdf"
+
+    # 2. PNG Verification
+    elif contents.startswith(b"\x89PNG\r\n\x1a\n"):
+        try:
+            img = Image.open(io.BytesIO(contents))
+            img.verify()
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Malformed or corrupt PNG image: {exc}",
+            )
+        return "png"
+
+    # 3. JPEG Verification
+    elif contents.startswith(b"\xff\xd8\xff"):
+        try:
+            img = Image.open(io.BytesIO(contents))
+            img.verify()
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Malformed or corrupt JPEG image: {exc}",
+            )
+        return "jpg"
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Invalid file signature. File content does not match allowed types (PDF, PNG, JPG/JPEG)."
+            ),
+        )
+
+
 @router.post(
     "/upload",
     response_model=DocumentResponse,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit_uploads)],
 )
 async def upload_document(
     file: UploadFile,
     current_user: dict = Depends(get_current_user),
 ):
-    # 1. Validate File Type
+    # 1. Validate File Type Header
     if file.content_type not in ALLOWED_FILE_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -57,7 +121,7 @@ async def upload_document(
             ),
         )
 
-    # 2. Read File
+    # 2. Read File Contents
     contents = await file.read()
 
     # 3. Validate File Size
@@ -78,8 +142,26 @@ async def upload_document(
             ),
         )
 
-    # 4. Generate unique storage filename
-    extension = ALLOWED_FILE_TYPES[file.content_type]
+    # 4. Validate File Signature / Content (Anti-Spoofing & Structural Parsing)
+    extension = validate_file_content(contents, file.content_type)
+
+    # 5. Enforce User Storage and Document Quota
+    user_id = current_user["_id"]
+    existing_docs = list(documents_collection.find({"user_id": user_id}, {"file_size": 1}))
+    if len(existing_docs) >= settings.max_user_documents:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"User document limit of {settings.max_user_documents} documents reached.",
+        )
+
+    total_storage = sum(d.get("file_size", 0) for d in existing_docs)
+    if total_storage + file_size > settings.max_user_storage_mb * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"User storage quota of {settings.max_user_storage_mb} MB exceeded.",
+        )
+
+    # 6. Generate unique storage filename
     unique_filename = f"{uuid.uuid4().hex}.{extension}"
 
     upload_directory = Path(settings.upload_dir)
