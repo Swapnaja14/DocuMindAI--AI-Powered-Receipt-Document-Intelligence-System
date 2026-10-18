@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-import fitz
+import pymupdf as fitz
 from PIL import Image
 from bson import ObjectId
 from fastapi import (
