@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict
 
-import fitz
+import pymupdf as fitz
 import pytesseract
 from PIL import Image
 
