@@ -6,23 +6,18 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import './AuthForms.css';
 
-export const RegisterForm: React.FC = () => {
+export const RegisterForm = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [errors, setErrors] = useState<{
-    email?: string;
-    password?: string;
-    confirmPassword?: string;
-    general?: string;
-  }>({});
+  const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Compute real-time password strength score (0 to 4)
-  const calculatePasswordStrength = (pwd: string): { score: number; label: string; color: string } => {
+  const calculatePasswordStrength = (pwd) => {
     if (!pwd) return { score: 0, label: 'Empty', color: 'transparent' };
     let score = 0;
     if (pwd.length >= 8) score += 1;
@@ -46,8 +41,8 @@ export const RegisterForm: React.FC = () => {
 
   const strength = calculatePasswordStrength(password);
 
-  const validate = (): boolean => {
-    const newErrors: { email?: string; password?: string; confirmPassword?: string } = {};
+  const validate = () => {
+    const newErrors = {};
 
     if (!email.trim()) {
       newErrors.email = 'Email address is required';
@@ -71,7 +66,7 @@ export const RegisterForm: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
@@ -81,7 +76,7 @@ export const RegisterForm: React.FC = () => {
     try {
       await register({ email: email.trim(), password });
       navigate('/dashboard', { replace: true });
-    } catch (err: any) {
+    } catch (err) {
       setErrors({
         general: err.message || 'Registration failed. Email may already be in use.',
       });

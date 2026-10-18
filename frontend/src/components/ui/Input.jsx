@@ -2,15 +2,7 @@ import React, { forwardRef, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import './Input.css';
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
-  error?: string;
-  helperText?: string;
-  leftIcon?: React.ReactNode;
-  showPasswordToggle?: boolean;
-}
-
-export const Input = forwardRef<HTMLInputElement, InputProps>(({
+export const Input = forwardRef(({
   label,
   error,
   helperText,

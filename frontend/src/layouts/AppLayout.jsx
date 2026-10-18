@@ -5,7 +5,7 @@ import { FileText, LogOut, User as UserIcon, Shield } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import './AppLayout.css';
 
-export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AppLayout = ({ children }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
