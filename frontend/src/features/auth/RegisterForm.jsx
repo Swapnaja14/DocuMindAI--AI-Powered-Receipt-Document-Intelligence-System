@@ -77,11 +77,21 @@ export const RegisterForm = () => {
       await register({ email: email.trim(), password });
       navigate('/dashboard', { replace: true });
     } catch (err) {
+      const isConflict = err.status === 409 || (err.message && err.message.toLowerCase().includes('already registered'));
       setErrors({
-        general: err.message || 'Registration failed. Email may already be in use.',
+        general: isConflict
+          ? 'This email address is already registered.'
+          : (err.message || 'Registration failed. Please check your details and try again.'),
+        isConflict,
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const clearGeneralError = () => {
+    if (errors.general) {
+      setErrors((prev) => ({ ...prev, general: undefined, isConflict: false }));
     }
   };
 
@@ -97,7 +107,14 @@ export const RegisterForm = () => {
       {errors.general && (
         <div className="auth-error-banner animate-shake" role="alert">
           <AlertCircle size={18} className="error-icon" />
-          <span>{errors.general}</span>
+          <span>
+            {errors.general}{' '}
+            {errors.isConflict && (
+              <Link to="/login" className="auth-link" style={{ textDecoration: 'underline', fontWeight: 600 }}>
+                Sign in instead
+              </Link>
+            )}
+          </span>
         </div>
       )}
 
@@ -110,6 +127,7 @@ export const RegisterForm = () => {
           value={email}
           onChange={(e) => {
             setEmail(e.target.value);
+            clearGeneralError();
             if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
           }}
           error={errors.email}
@@ -127,6 +145,7 @@ export const RegisterForm = () => {
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
+              clearGeneralError();
               if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
             }}
             error={errors.password}
@@ -164,6 +183,7 @@ export const RegisterForm = () => {
           value={confirmPassword}
           onChange={(e) => {
             setConfirmPassword(e.target.value);
+            clearGeneralError();
             if (errors.confirmPassword) setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
           }}
           error={errors.confirmPassword}

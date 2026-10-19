@@ -15,11 +15,14 @@ from app.services.faiss_service import FAISSService
     bind=True,
     name="chunk_document",
 )
-def chunk_document(self, document_id):
+def chunk_document(self=None, document_id=None):
     """
     Chunk the OCR text of a processed document, persist chunks in MongoDB (document_chunks),
     generate embeddings, and index vectors into FAISS.
     """
+    if document_id is None:
+        document_id = self
+
     if isinstance(document_id, dict):
         document_id = document_id.get("document_id")
     else:

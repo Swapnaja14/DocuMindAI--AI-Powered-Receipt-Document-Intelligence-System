@@ -1,0 +1,223 @@
+.doc-list-container {
+  width: 100%;
+}
+
+.doc-table-wrapper {
+  background: rgba(17, 24, 39, 0.45);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.doc-table th {
+  padding: 0.85rem 1.15rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: rgba(15, 23, 42, 0.7);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.doc-table td {
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.doc-row {
+  transition: background var(--transition-fast);
+}
+
+.doc-row:last-child td {
+  border-bottom: none;
+}
+
+.doc-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.doc-row.row-failed {
+  background: rgba(239, 68, 68, 0.03);
+}
+
+.doc-row.row-failed:hover {
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.doc-row.row-processing {
+  background: rgba(99, 102, 241, 0.03);
+}
+
+/* Document Info Cell */
+.doc-item-title-box {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.doc-icon-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: rgba(99, 102, 241, 0.12);
+  color: #818CF8;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.doc-name-col {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-width: 320px;
+}
+
+.doc-filename {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.925rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-type-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  margin-top: 0.15rem;
+}
+
+/* Size Cell */
+.size-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+
+/* Date Cell */
+.date-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.relative-date {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.absolute-date {
+  font-size: 0.725rem;
+  color: var(--text-muted);
+}
+
+/* Actions Cell */
+.actions-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.action-icon-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.45rem;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.action-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.action-icon-btn.delete:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #EF4444;
+}
+
+/* Empty State Card */
+.doc-list-empty-card {
+  padding: 3.5rem 1.5rem;
+  background: rgba(17, 24, 39, 0.4);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+}
+
+.empty-icon-box {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.empty-description {
+  max-width: 440px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Skeleton Loading */
+.doc-list-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.skeleton-row {
+  height: 60px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.02) 25%, rgba(255, 255, 255, 0.06) 50%, rgba(255, 255, 255, 0.02) 75%);
+  background-size: 200% 100%;
+  animation: pulseGlow 1.5s infinite;
+  border-radius: var(--radius-md);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .col-size,
+  .cell-size,
+  .col-date,
+  .cell-date {
+    display: none;
+  }
+}

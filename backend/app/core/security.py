@@ -1,19 +1,43 @@
 from datetime import datetime, timedelta, timezone
 
 import jwt
-from pwdlib import PasswordHash
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHash, VerificationError
 
 from app.core.config import settings
 
-password_hash = PasswordHash.recommended()
+_hasher = PasswordHasher()
+
+
+class _PasswordHashWrapper:
+    """Compatibility wrapper providing .hash() and .verify() interface."""
+
+    def hash(self, password: str) -> str:
+        return _hasher.hash(password)
+
+    def verify(self, password: str, hashed_password: str) -> bool:
+        try:
+            return _hasher.verify(hashed_password, password)
+        except (VerificationError, InvalidHash):
+            return False
+        except Exception:
+            return False
+
+
+password_hash = _PasswordHashWrapper()
 
 
 def hash_password(password: str) -> str:
-    return password_hash.hash(password)
+    return _hasher.hash(password)
 
 
 def verify_password(password: str, hashed_password: str) -> bool:
-    return password_hash.verify(password, hashed_password)
+    try:
+        return _hasher.verify(hashed_password, password)
+    except (VerificationError, InvalidHash):
+        return False
+    except Exception:
+        return False
 
 
 def create_access_token(user_id: str) -> str:

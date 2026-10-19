@@ -295,6 +295,40 @@ def test_upload_valid_pdf_success(mock_security_env):
             app.dependency_overrides.clear()
 
 
+def test_upload_fallback_when_celery_broker_offline(mock_security_env):
+    """When Celery/Redis is offline, upload must still succeed with 201 and fall back to background thread."""
+    env = mock_security_env
+    user_a = env["user_a"]
+
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((50, 50), "Receipt with offline Celery broker\nTotal: $45.00")
+    pdf_bytes = doc.tobytes()
+    doc.close()
+
+    with patch("app.api.routes.documents.documents_collection", env["docs_col"]), \
+         patch("app.api.routes.documents.chain") as mock_chain, \
+         patch("app.api.routes.documents.process_document") as mock_process:
+        mock_chain.return_value.apply_async.side_effect = Exception("Celery/Redis broker connection refused")
+        mock_process.return_value = "doc_id"
+
+        app.dependency_overrides[get_current_user] = lambda: user_a
+        client = TestClient(app)
+        try:
+            resp = client.post(
+                "/api/v1/documents/upload",
+                files={"file": ("offline_broker_receipt.pdf", pdf_bytes, "application/pdf")},
+            )
+            assert resp.status_code == 201
+            data = resp.json()
+            assert data["file_type"] == "pdf"
+            assert data["status"] == "UPLOADED"
+            # Verify background task invoked process_document
+            mock_process.assert_called_once()
+        finally:
+            app.dependency_overrides.clear()
+
+
 def test_upload_disguised_executable_rejected():
     """
     Anti-Spoofing: An attacker sends a shell script / binary disguised with

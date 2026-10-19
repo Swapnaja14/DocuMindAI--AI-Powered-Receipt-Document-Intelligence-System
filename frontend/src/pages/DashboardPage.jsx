@@ -11,13 +11,17 @@ import {
   Database,
   Lock,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
+import { documentsApi } from '../api/documents';
 import './DashboardPage.css';
 
 export const DashboardPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [healthStatus, setHealthStatus] = useState('checking...');
   const [isHealthReady, setIsHealthReady] = useState(null);
+  const [docCount, setDocCount] = useState(0);
 
   useEffect(() => {
     // Check backend readiness probe
@@ -32,7 +36,19 @@ export const DashboardPage = () => {
       }
     };
 
+    const fetchStats = async () => {
+      try {
+        const docs = await documentsApi.getDocuments();
+        if (Array.isArray(docs)) {
+          setDocCount(docs.length);
+        }
+      } catch {
+        // silent fail on dashboard metrics
+      }
+    };
+
     checkSystemHealth();
+    fetchStats();
   }, []);
 
   const formattedDate = user?.created_at
@@ -68,15 +84,21 @@ export const DashboardPage = () => {
 
         {/* Quick Stat Highlights */}
         <div className="dashboard-metrics-grid">
-          <Card variant="glass" className="metric-card">
+          <Card
+            variant="glass"
+            className="metric-card interactive"
+            onClick={() => navigate('/documents')}
+            style={{ cursor: 'pointer' }}
+            title="Click to manage documents"
+          >
             <div className="metric-header">
               <span className="metric-label">Document Store</span>
               <div className="metric-icon-box blue">
                 <FileText size={18} />
               </div>
             </div>
-            <div className="metric-value">0</div>
-            <p className="metric-desc">Receipts &amp; invoices uploaded</p>
+            <div className="metric-value">{docCount}</div>
+            <p className="metric-desc">Receipts &amp; invoices uploaded • View all →</p>
           </Card>
 
           <Card variant="glass" className="metric-card">
