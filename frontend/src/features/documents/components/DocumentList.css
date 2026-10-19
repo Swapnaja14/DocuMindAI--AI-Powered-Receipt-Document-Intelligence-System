@@ -115,17 +115,60 @@
 .date-wrapper {
   display: flex;
   flex-direction: column;
+  gap: 0.15rem;
 }
 
 .relative-date {
   font-size: 0.85rem;
   color: var(--text-primary);
-  font-weight: 500;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.live-time-indicator {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #10B981;
+}
+
+.live-time-indicator.active-pulse {
+  background-color: #6366F1;
+  box-shadow: 0 0 8px #6366F1;
+  animation: pulseIndicator 1.5s infinite;
+}
+
+@keyframes pulseIndicator {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
 }
 
 .absolute-date {
   font-size: 0.725rem;
   color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.clock-micro-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.date-separator-dot {
+  color: var(--border-card);
+  font-size: 0.65rem;
+}
+
+.time-part {
+  font-family: monospace;
+  font-size: 0.725rem;
+  color: #94A3B8;
 }
 
 /* Actions Cell */

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { getSafeFailureDetails } from '../utils/errorSanitizer';
+import { formatDeviceDateTime, formatDynamicRelativeTime } from '../utils/dateUtils';
 import './DocumentFailureModal.css';
 
 export const DocumentFailureModal = ({
@@ -78,8 +79,8 @@ export const DocumentFailureModal = ({
             <div className="meta-sub">
               <span>Size: {(document.file_size / (1024 * 1024)).toFixed(2)} MB</span>
               <span>•</span>
-              <span>
-                Uploaded: {new Date(document.uploaded_at || document.processing?.uploaded_at).toLocaleString()}
+              <span title={formatDynamicRelativeTime(document.uploaded_at || document.processing?.uploaded_at)}>
+                Uploaded: {formatDeviceDateTime(document.uploaded_at || document.processing?.uploaded_at)} ({formatDynamicRelativeTime(document.uploaded_at || document.processing?.uploaded_at)})
               </span>
             </div>
           </div>

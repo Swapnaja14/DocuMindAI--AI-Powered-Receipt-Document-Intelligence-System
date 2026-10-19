@@ -10,6 +10,7 @@ import {
   Layers,
   ChevronDown,
   ChevronUp,
+  RefreshCw,
 } from 'lucide-react';
 import { documentsApi } from '../api/documents';
 import { DocumentUploader } from '../features/documents/components/DocumentUploader';
@@ -18,15 +19,18 @@ import { DocumentList } from '../features/documents/components/DocumentList';
 import { DocumentFailureModal } from '../features/documents/components/DocumentFailureModal';
 import { DeleteConfirmDialog } from '../features/documents/components/DeleteConfirmDialog';
 import { DocumentDetailsModal } from '../features/documents/components/DocumentDetailsModal';
+import { ErrorState } from '../components/ui/ErrorState';
 import { getStatusCategory } from '../features/documents/utils/statusUtils';
 import './DocumentsPage.css';
 
-const POLLING_INTERVAL_MS = 3500;
+const ACTIVE_POLLING_INTERVAL_MS = 2500;
+const IDLE_POLLING_INTERVAL_MS = 15000;
 
 export const DocumentsPage = () => {
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [serverError, setServerError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -54,9 +58,15 @@ export const DocumentsPage = () => {
     try {
       const data = await documentsApi.getDocuments();
       setDocuments(Array.isArray(data) ? data : []);
+      setServerError(null);
       setLastUpdated(new Date());
     } catch (err) {
       if (!isSilent) {
+        setServerError({
+          message: err.message || 'Failed to fetch document status from backend server.',
+          status: err.status || 500,
+          detail: err.detail,
+        });
         showToast(err.message || 'Failed to fetch document status.', 'error');
       }
     } finally {
@@ -77,21 +87,29 @@ export const DocumentsPage = () => {
     return category === 'uploaded' || category === 'processing' || isIndexing;
   });
 
-  // Polling effect: poll periodically only while processing is active
+  // Polling effect:
+  // - Polls every 2.5s while active processing/queueing is occurring so statuses update dynamically
+  // - Polls every 15s in background when idle to capture background updates
   useEffect(() => {
-    if (!hasActiveProcessing) return;
+    const intervalMs = hasActiveProcessing ? ACTIVE_POLLING_INTERVAL_MS : IDLE_POLLING_INTERVAL_MS;
 
     const intervalId = setInterval(() => {
       fetchDocuments(true);
-    }, POLLING_INTERVAL_MS);
+    }, intervalMs);
 
     return () => clearInterval(intervalId);
   }, [hasActiveProcessing, fetchDocuments]);
 
-  // Handle successful upload
+  // Handle successful upload: stamped with device time and immediately added to state
   const handleUploadSuccess = (newDoc) => {
     showToast(`Uploaded ${newDoc.filename}. Processing queued!`, 'success');
-    fetchDocuments(false);
+    const deviceSyncedDoc = {
+      ...newDoc,
+      uploaded_at: newDoc.uploaded_at || newDoc.processing?.uploaded_at || new Date().toISOString(),
+      status: newDoc.status || 'UPLOADED',
+    };
+    setDocuments((prev) => [deviceSyncedDoc, ...prev.filter((d) => d.id !== newDoc.id)]);
+    fetchDocuments(true);
   };
 
   // Handle Document Deletion
@@ -102,7 +120,6 @@ export const DocumentsPage = () => {
       await documentsApi.deleteDocument(deleteModalDoc.id);
       showToast(`Document "${deleteModalDoc.filename}" permanently deleted.`, 'success');
       setDeleteModalDoc(null);
-      // Remove directly from local state for immediate responsiveness
       setDocuments((prev) => prev.filter((d) => d.id !== deleteModalDoc.id));
     } catch (err) {
       showToast(err.message || 'Failed to delete document.', 'error');
@@ -127,13 +144,11 @@ export const DocumentsPage = () => {
 
   // Filtered documents list based on tab & search query
   const filteredDocuments = documents.filter((doc) => {
-    // 1. Status Filter Tab
     if (activeTab !== 'all') {
       const category = getStatusCategory(doc.status);
       if (category !== activeTab) return false;
     }
 
-    // 2. Search Query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       const filenameMatch = doc.filename?.toLowerCase().includes(q);
@@ -151,7 +166,7 @@ export const DocumentsPage = () => {
         <div className="doc-page-header">
           <div>
             <span className="doc-page-badge">
-              <FileText size={14} className="inline-icon" />
+              <FileText size={14} className="inline-icon" aria-hidden="true" />
               Document Intelligence Hub
             </span>
             <h1 className="doc-page-title">Document Management</h1>
@@ -165,32 +180,50 @@ export const DocumentsPage = () => {
               className="toggle-upload-btn"
               onClick={() => setIsUploadSectionOpen((prev) => !prev)}
               aria-expanded={isUploadSectionOpen}
+              aria-controls="upload-collapsible-section"
             >
-              <UploadCloud size={16} />
+              <UploadCloud size={16} aria-hidden="true" />
               <span>{isUploadSectionOpen ? 'Hide Uploader' : 'Upload PDF'}</span>
-              {isUploadSectionOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              {isUploadSectionOpen ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}
             </button>
           </div>
         </div>
 
         {/* Global Toast Notification */}
         {toastMessage && (
-          <div className={`doc-toast-banner ${toastMessage.type} animate-slide-up`}>
+          <div
+            className={`doc-toast-banner ${toastMessage.type} animate-slide-up`}
+            role="status"
+            aria-live="polite"
+          >
             {toastMessage.type === 'success' ? (
-              <CheckCircle2 size={16} className="toast-icon" />
+              <CheckCircle2 size={16} className="toast-icon" aria-hidden="true" />
             ) : (
-              <AlertTriangle size={16} className="toast-icon" />
+              <AlertTriangle size={16} className="toast-icon" aria-hidden="true" />
             )}
             <span className="toast-text">{toastMessage.text}</span>
           </div>
         )}
 
+        {/* Server Error Notice with Retry */}
+        {serverError && (
+          <ErrorState
+            variant="banner"
+            title="Connection Issue"
+            message={serverError.message}
+            status={serverError.status}
+            onRetry={() => fetchDocuments(false)}
+            isRetrying={isRefreshing}
+            onDismiss={() => setServerError(null)}
+          />
+        )}
+
         {/* Metric Summary Cards */}
-        <div className="doc-metrics-grid">
+        <div className="doc-metrics-grid" role="region" aria-label="Document Processing Statistics">
           <Card variant="glass" className="doc-metric-card">
             <div className="metric-header">
               <span className="metric-label">Total Documents</span>
-              <div className="metric-icon-box blue">
+              <div className="metric-icon-box blue" aria-hidden="true">
                 <FileText size={18} />
               </div>
             </div>
@@ -201,7 +234,7 @@ export const DocumentsPage = () => {
           <Card variant="glass" className="doc-metric-card">
             <div className="metric-header">
               <span className="metric-label">Pipeline Active</span>
-              <div className={`metric-icon-box purple ${counts.processing > 0 ? 'pulse' : ''}`}>
+              <div className={`metric-icon-box purple ${counts.processing > 0 ? 'pulse' : ''}`} aria-hidden="true">
                 {counts.processing > 0 ? (
                   <Loader2 size={18} className="spinning" />
                 ) : (
@@ -220,7 +253,7 @@ export const DocumentsPage = () => {
           <Card variant="glass" className="doc-metric-card">
             <div className="metric-header">
               <span className="metric-label">Completed &amp; Ready</span>
-              <div className="metric-icon-box green">
+              <div className="metric-icon-box green" aria-hidden="true">
                 <CheckCircle2 size={18} />
               </div>
             </div>
@@ -231,7 +264,7 @@ export const DocumentsPage = () => {
           <Card variant="glass" className="doc-metric-card">
             <div className="metric-header">
               <span className="metric-label">Action Required</span>
-              <div className={`metric-icon-box red ${counts.failed > 0 ? 'alert' : ''}`}>
+              <div className={`metric-icon-box red ${counts.failed > 0 ? 'alert' : ''}`} aria-hidden="true">
                 <AlertTriangle size={18} />
               </div>
             </div>
@@ -244,7 +277,7 @@ export const DocumentsPage = () => {
 
         {/* Upload Section */}
         {isUploadSectionOpen && (
-          <div className="upload-container-section animate-slide-up">
+          <div id="upload-collapsible-section" className="upload-container-section animate-slide-up">
             <DocumentUploader onUploadSuccess={handleUploadSuccess} />
           </div>
         )}
@@ -271,6 +304,12 @@ export const DocumentsPage = () => {
           onDeleteRequest={(doc) => setDeleteModalDoc(doc)}
           activeFilter={activeTab}
           searchQuery={searchQuery}
+          onClearSearch={() => setSearchQuery('')}
+          onResetFilter={() => setActiveTab('all')}
+          onUploadClick={() => {
+            setIsUploadSectionOpen(true);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
         />
 
         {/* Safe Failure Details Modal */}
@@ -310,3 +349,5 @@ export const DocumentsPage = () => {
     </AppLayout>
   );
 };
+
+export default DocumentsPage;

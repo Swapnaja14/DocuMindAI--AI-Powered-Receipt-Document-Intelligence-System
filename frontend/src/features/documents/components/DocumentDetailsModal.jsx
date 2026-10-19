@@ -9,6 +9,7 @@ import {
 import { Button } from '../../../components/ui/Button';
 import { DocumentStatusBadge } from './DocumentStatusBadge';
 import { documentsApi } from '../../../api/documents';
+import { formatDeviceDateTime, formatDynamicRelativeTime } from '../utils/dateUtils';
 import './DocumentDetailsModal.css';
 
 export const DocumentDetailsModal = ({
@@ -95,8 +96,8 @@ export const DocumentDetailsModal = ({
                       {(docDetails.file_size / (1024 * 1024)).toFixed(2)} MB
                     </span>
                     <span className="meta-text">•</span>
-                    <span className="meta-text">
-                      Uploaded {new Date(processing.uploaded_at).toLocaleDateString()}
+                    <span className="meta-text" title={formatDynamicRelativeTime(processing.uploaded_at)}>
+                      Uploaded: {formatDeviceDateTime(processing.uploaded_at)} ({formatDynamicRelativeTime(processing.uploaded_at)})
                     </span>
                   </>
                 )}

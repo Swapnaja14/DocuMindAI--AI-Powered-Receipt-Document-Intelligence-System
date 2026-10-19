@@ -58,6 +58,10 @@ export const ExpenseFilterBar = ({
       (filters.documentIds && filters.documentIds.length > 0)
   );
 
+  const isDateRangeInvalid = Boolean(
+    filters.startDate && filters.endDate && filters.startDate > filters.endDate
+  );
+
   return (
     <Card variant="glass" className="expense-filter-card">
       <div className="filter-card-header">
@@ -102,23 +106,44 @@ export const ExpenseFilterBar = ({
             <div className="input-with-icon">
               <input
                 type="date"
-                className="filter-date-input"
+                className={`filter-date-input ${isDateRangeInvalid ? 'input-error' : ''}`}
                 value={filters.startDate || ''}
                 onChange={(e) => onFilterChange({ startDate: e.target.value })}
                 title="Start date"
+                aria-label="Filter by start date"
+                aria-invalid={isDateRangeInvalid}
               />
             </div>
             <span className="date-separator">to</span>
             <div className="input-with-icon">
               <input
                 type="date"
-                className="filter-date-input"
+                className={`filter-date-input ${isDateRangeInvalid ? 'input-error' : ''}`}
                 value={filters.endDate || ''}
                 onChange={(e) => onFilterChange({ endDate: e.target.value })}
                 title="End date"
+                aria-label="Filter by end date"
+                aria-invalid={isDateRangeInvalid}
               />
             </div>
           </div>
+          {isDateRangeInvalid && (
+            <div className="filter-validation-msg animate-shake" role="alert" aria-live="assertive">
+              <span>Start date cannot be after end date.</span>
+              <button
+                type="button"
+                className="validation-fix-btn"
+                onClick={() =>
+                  onFilterChange({
+                    startDate: filters.endDate,
+                    endDate: filters.startDate,
+                  })
+                }
+              >
+                Swap dates
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Currency Filter */}
