@@ -1,0 +1,100 @@
+.status-badge-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.01em;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.size-sm .status-badge {
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+}
+
+.size-md .status-badge {
+  padding: 0.25rem 0.65rem;
+  font-size: 0.78rem;
+}
+
+.size-lg .status-badge {
+  padding: 0.35rem 0.85rem;
+  font-size: 0.875rem;
+}
+
+/* Uploaded State - Amber / Orange */
+.badge-uploaded {
+  background: rgba(245, 158, 11, 0.12);
+  color: #FBBF24;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+}
+
+/* Processing State - Indigo / Purple with Glow */
+.badge-processing {
+  background: rgba(99, 102, 241, 0.16);
+  color: #A5B4FC;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
+}
+
+/* Completed State - Emerald Green */
+.badge-completed {
+  background: rgba(16, 185, 129, 0.14);
+  color: #34D399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* Failed State - Rose Red */
+.badge-failed {
+  background: rgba(239, 68, 68, 0.14);
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.badge-icon {
+  flex-shrink: 0;
+}
+
+.spinning {
+  animation: spin 1.2s linear infinite;
+}
+
+/* Vector Index Status Chip */
+.vector-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.vector-badge.vector-indexed {
+  color: #38BDF8;
+  border-color: rgba(56, 189, 248, 0.25);
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.vector-badge.vector-indexing {
+  color: #FBBF24;
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.vector-badge.vector-failed {
+  color: #FB7185;
+  border-color: rgba(244, 63, 94, 0.25);
+}

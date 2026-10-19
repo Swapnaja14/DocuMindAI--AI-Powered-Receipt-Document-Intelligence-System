@@ -57,23 +57,73 @@ export async function apiClient(endpoint, options = {}) {
     }
 
     if (!response.ok) {
-      let errorMessage = 'An unexpected error occurred. Please try again.';
+      let errorMessage = '';
 
       if (data && data.detail) {
         if (typeof data.detail === 'string') {
           errorMessage = data.detail;
         } else if (Array.isArray(data.detail)) {
-          // Format FastAPI validation error details
-          errorMessage = data.detail.map((d) => d.msg || JSON.stringify(d)).join(', ');
+          // Format FastAPI / Pydantic validation error details cleanly
+          errorMessage = data.detail
+            .map((d) => {
+              const field = Array.isArray(d.loc) ? d.loc.slice(-1)[0] : '';
+              const msg = d.msg || (typeof d === 'string' ? d : JSON.stringify(d));
+              return field && field !== 'body' ? `${field}: ${msg}` : msg;
+            })
+            .join('; ');
+        } else if (typeof data.detail === 'object') {
+          errorMessage = data.detail.message || data.detail.msg || JSON.stringify(data.detail);
         }
-      } else if (data && data.message) {
+      } else if (data && data.message && typeof data.message === 'string' && !data.message.includes('<!DOCTYPE') && !data.message.includes('<html')) {
         errorMessage = data.message;
+      } else if (data && data.error && typeof data.error === 'string') {
+        errorMessage = data.error;
+      }
+
+      // Friendly contextual fallbacks if backend did not supply a readable detail
+      if (!errorMessage) {
+        switch (response.status) {
+          case 400:
+            errorMessage = 'Invalid request. Please check your input and try again.';
+            break;
+          case 401:
+            errorMessage = 'Incorrect email or password. Please try again.';
+            break;
+          case 403:
+            errorMessage = 'Access denied. You do not have permission for this action.';
+            break;
+          case 404:
+            errorMessage = 'The requested resource was not found.';
+            break;
+          case 409:
+            errorMessage = 'This email address is already registered. Please sign in instead.';
+            break;
+          case 422:
+            errorMessage = 'Input validation failed. Please check all fields.';
+            break;
+          case 429:
+            errorMessage = 'Too many requests. Please wait a moment before trying again.';
+            break;
+          case 500:
+            errorMessage = 'Server error encountered. Please try again shortly.';
+            break;
+          case 502:
+          case 503:
+          case 504:
+            errorMessage = 'Backend service is currently unavailable. Please ensure the server is running.';
+            break;
+          default:
+            errorMessage = `Request failed with status ${response.status}. Please try again.`;
+            break;
+        }
       }
 
       // If token expired or unauthorized, broadcast event
       if (response.status === 401) {
         window.dispatchEvent(new CustomEvent('documind:unauthorized'));
       }
+
+      console.error(`[API Error ${response.status}] ${url}:`, errorMessage, data);
 
       const error = {
         message: errorMessage,

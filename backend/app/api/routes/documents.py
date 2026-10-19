@@ -1,5 +1,7 @@
 import io
+import logging
 import os
+import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -9,6 +11,7 @@ from PIL import Image
 from bson import ObjectId
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Depends,
     HTTPException,
     UploadFile,
@@ -26,6 +29,8 @@ from app.repositories.chunk_repository import ChunkRepository
 from app.services.cache_service import invalidate_user_cache
 from app.tasks.document_tasks import process_ocr, extract_document, process_document
 from app.tasks.chunking_tasks import chunk_document
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/documents",
@@ -109,6 +114,7 @@ def validate_file_content(contents: bytes, declared_content_type: str) -> str:
 )
 async def upload_document(
     file: UploadFile,
+    background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user),
 ):
     # 1. Validate File Type Header
@@ -172,73 +178,90 @@ async def upload_document(
 
     file_path = upload_directory / unique_filename
 
-    # 5. Save file
+    # 5. Save file to disk
     try:
         with open(file_path, "wb") as output_file:
             output_file.write(contents)
-
-        # 6. Create MongoDB Document
-        now = datetime.now(timezone.utc)
-
-        document = {
-            "user_id": current_user["_id"],
-            "filename": file.filename or unique_filename,
-            "file_type": extension,
-            "file_path": str(file_path),
-            "file_size": file_size,
-            "status": DocumentStatus.UPLOADED.value,
-            "ocr_status": "PENDING",
-            "extraction_status": "PENDING",
-            "chunking_status": "PENDING",
-            "vector_status": "PENDING",
-            "chunk_count": 0,
-            "ocr": {
-                "raw_text": "",
-                "page_count": 0,
-            },
-            "extracted_data": {},
-            "processing": {
-                "uploaded_at": now,
-                "processed_at": None,
-                "processing_time_ms": None,
-                "stage": "uploaded",
-                "error": None,
-            },
-        }
-
-        result = documents_collection.insert_one(document)
-
-        document_id = str(result.inserted_id)
-
-        try:
-            chain(
-                process_ocr.s(document_id),
-                extract_document.s(),
-                chunk_document.s(),
-            ).apply_async()
-        except Exception:
-            documents_collection.update_one(
-                {"_id": result.inserted_id},
-                {
-                    "$set": {
-                        "status":  DocumentStatus.FAILED.value,
-                    }
-                },
-            )
-            raise HTTPException(
-                status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail = "Document was saved but could not be queued for processing.",
-            )
-
-    except Exception:
-        # Remove saved file if MongoDB insertion fails
+    except Exception as exc:
+        logger.error("Failed to write uploaded file to disk: %s", exc)
         if file_path.exists():
-            os.remove(file_path)
-
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to save document.",
         )
+
+    # 6. Create MongoDB Document
+    now = datetime.now(timezone.utc)
+
+    document = {
+        "user_id": current_user["_id"],
+        "filename": file.filename or unique_filename,
+        "file_type": extension,
+        "file_path": str(file_path),
+        "file_size": file_size,
+        "status": DocumentStatus.UPLOADED.value,
+        "ocr_status": "PENDING",
+        "extraction_status": "PENDING",
+        "chunking_status": "PENDING",
+        "vector_status": "PENDING",
+        "chunk_count": 0,
+        "ocr": {
+            "raw_text": "",
+            "page_count": 0,
+        },
+        "extracted_data": {},
+        "processing": {
+            "uploaded_at": now,
+            "processed_at": None,
+            "processing_time_ms": None,
+            "stage": "uploaded",
+            "error": None,
+        },
+    }
+
+    try:
+        result = documents_collection.insert_one(document)
+    except Exception as exc:
+        logger.error("Failed to insert document into MongoDB: %s", exc)
+        if file_path.exists():
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save document.",
+        )
+
+    document_id = str(result.inserted_id)
+
+    # 7. Queue asynchronous processing (Celery with fallback to background thread)
+    dispatched = False
+    try:
+        chain(
+            process_ocr.s(document_id),
+            extract_document.s(),
+            chunk_document.s(),
+        ).apply_async()
+        dispatched = True
+    except Exception as exc:
+        logger.warning(
+            "Celery async queueing failed (%s). Falling back to background processing thread.",
+            exc,
+        )
+
+    if not dispatched:
+        def run_background_pipeline(doc_id: str):
+            try:
+                process_document(doc_id)
+            except Exception as e:
+                logger.error("Background document pipeline failed for %s: %s", doc_id, e)
+
+        background_tasks.add_task(run_background_pipeline, document_id)
 
     # 7. Return response
     return DocumentResponse(

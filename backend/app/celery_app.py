@@ -1,10 +1,13 @@
 from celery import Celery
 from app.core.config import settings
 
-broker_url = settings.celery_broker_url or settings.redis_url
-backend_url = settings.celery_result_backend or (
+raw_broker = settings.celery_broker_url or settings.redis_url
+broker_url = raw_broker.replace("://localhost:", "://127.0.0.1:") if "://localhost:" in raw_broker else raw_broker
+
+raw_backend = settings.celery_result_backend or (
     settings.redis_url.rsplit("/", 1)[0] + "/1" if "/" in settings.redis_url else settings.redis_url
 )
+backend_url = raw_backend.replace("://localhost:", "://127.0.0.1:") if "://localhost:" in raw_backend else raw_backend
 
 celery_app = Celery(
     "documind",

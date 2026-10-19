@@ -114,21 +114,34 @@ def ocr_pdf(file_path: str) -> Dict[str, Any]:
         page_count = len(pdf)
 
         for page_number, page in enumerate(pdf):
-            # Render PDF page at approximately 300 DPI
-            matrix = fitz.Matrix(300 / 72, 300 / 72)
+            page_text = ""
+            direct_text = page.get_text().strip()
 
-            pixmap = page.get_pixmap(
-                matrix=matrix,
-                alpha=False,
-            )
+            try:
+                # Render PDF page at approximately 300 DPI
+                matrix = fitz.Matrix(300 / 72, 300 / 72)
 
-            image_bytes = pixmap.tobytes("png")
+                pixmap = page.get_pixmap(
+                    matrix=matrix,
+                    alpha=False,
+                )
 
-            image = Image.open(
-                io.BytesIO(image_bytes)
-            )
+                image_bytes = pixmap.tobytes("png")
 
-            page_text = ocr_image(image)
+                image = Image.open(
+                    io.BytesIO(image_bytes)
+                )
+
+                page_text = ocr_image(image)
+            except Exception as ocr_exc:
+                if direct_text:
+                    page_text = direct_text
+                else:
+                    raise ocr_exc
+
+            # If OCR yielded little or no text but digital PDF text exists, use digital text
+            if direct_text and len(direct_text) > len(page_text):
+                page_text = direct_text
 
             if page_text:
                 extracted_text.append(
