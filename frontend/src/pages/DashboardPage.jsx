@@ -10,6 +10,7 @@ import {
   CheckCircle,
   Database,
   Lock,
+  Sparkles,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
@@ -101,15 +102,21 @@ export const DashboardPage = () => {
             <p className="metric-desc">Receipts &amp; invoices uploaded • View all →</p>
           </Card>
 
-          <Card variant="glass" className="metric-card">
+          <Card
+            variant="glass"
+            className="metric-card interactive"
+            onClick={() => navigate('/chat')}
+            style={{ cursor: 'pointer' }}
+            title="Click to open RAG Chat"
+          >
             <div className="metric-header">
-              <span className="metric-label">Vector Search</span>
+              <span className="metric-label">RAG Intelligence</span>
               <div className="metric-icon-box purple">
-                <Search size={18} />
+                <Sparkles size={18} />
               </div>
             </div>
-            <div className="metric-value">FAISS</div>
-            <p className="metric-desc">Multi-tenant vector retriever ready</p>
+            <div className="metric-value">AI Chat</div>
+            <p className="metric-desc">Grounded Q&amp;A with citations • Ask now →</p>
           </Card>
 
           <Card variant="glass" className="metric-card">
