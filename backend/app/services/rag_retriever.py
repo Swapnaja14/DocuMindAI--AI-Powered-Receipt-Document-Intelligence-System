@@ -17,7 +17,7 @@ class RAGRetriever:
     Enforces tenant isolation, similarity threshold filtering, and citation metadata extraction.
     """
 
-    DEFAULT_SCORE_THRESHOLD = 0.35
+    DEFAULT_SCORE_THRESHOLD = 0.20
 
     def __init__(
         self,
@@ -137,13 +137,15 @@ class RAGRetriever:
                 user_doc_map[str(doc["_id"])] = doc
 
             # 6. Preserve FAISS rank order & apply ownership + similarity thresholds
+            threshold_exhausted = False
             for match in new_matches:
                 chunk_id = match.get("chunk_id")
                 score = match.get("score", 0.0)
 
                 # Similarity threshold check
                 if effective_threshold is not None and score < effective_threshold:
-                    # Chunks are returned in descending score order
+                    # Chunks are returned in descending score order; remaining candidates will also be below threshold
+                    threshold_exhausted = True
                     break
 
                 chunk = chunk_map.get(str(chunk_id))
@@ -184,6 +186,9 @@ class RAGRetriever:
 
                 if len(user_authorized_results) >= top_k:
                     return user_authorized_results
+
+            if threshold_exhausted:
+                break
 
             # Expand search deeper if we haven't collected top_k user-owned chunks
             if len(user_authorized_results) < top_k and candidate_k < total_vectors:

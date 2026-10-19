@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, NavLink } from 'react-router-dom';
 import { useAuth } from '../features/auth/AuthContext';
-import { FileText, LogOut, User as UserIcon, Shield, LayoutDashboard, Files } from 'lucide-react';
+import { FileText, LogOut, User as UserIcon, Shield, LayoutDashboard, Files, Sparkles, TrendingUp } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import './AppLayout.css';
 
@@ -48,6 +48,20 @@ export const AppLayout = ({ children }) => {
               >
                 <Files size={16} />
                 <span>Documents</span>
+              </NavLink>
+              <NavLink
+                to="/chat"
+                className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+              >
+                <Sparkles size={16} />
+                <span>AI Chat</span>
+              </NavLink>
+              <NavLink
+                to="/expenses"
+                className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+              >
+                <TrendingUp size={16} />
+                <span>Expenses</span>
               </NavLink>
             </nav>
           </div>

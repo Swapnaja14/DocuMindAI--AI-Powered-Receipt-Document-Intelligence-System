@@ -140,3 +140,12 @@ class DocumentRepository:
 
         cursor = self.collection.find(query).sort("created_at", -1).limit(limit)
         return list(cursor)
+
+    def get_expense_summary(self, user_id: str, params: Any = None):
+        """
+        Calculates structured expense summary metrics for the given user.
+        """
+        from app.services.expense_service import ExpenseService
+        service = ExpenseService(self.collection.database)
+        return service.compute_summary(user_id=user_id, params=params)
+

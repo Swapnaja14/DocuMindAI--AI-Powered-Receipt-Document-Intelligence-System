@@ -16,132 +16,163 @@ export const getAuthToken = () => {
   return activeToken || sessionStorage.getItem('documind_token');
 };
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export async function apiClient(endpoint, options = {}) {
-  const token = getAuthToken();
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(options.headers || {}),
-  };
+  const maxRetries = options.retries !== undefined ? options.retries : 2;
+  const retryDelay = options.retryDelay || 800;
+  let attempt = 0;
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+  while (true) {
+    const token = getAuthToken();
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    };
 
-  // Remove Content-Type for FormData uploads so browser sets boundary automatically
-  if (options.body instanceof FormData) {
-    delete headers['Content-Type'];
-  }
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
 
-  const url = endpoint.startsWith('http')
-    ? endpoint
-    : `${BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    // Remove Content-Type for FormData uploads so browser sets boundary automatically
+    if (options.body instanceof FormData) {
+      delete headers['Content-Type'];
+    }
 
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    const url = endpoint.startsWith('http')
+      ? endpoint
+      : `${BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers,
+      });
 
     // Handle 204 No Content
     if (response.status === 204) {
       return {};
     }
 
-    let data = null;
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      data = await response.json();
-    } else {
-      const text = await response.text();
-      data = text ? { message: text } : {};
-    }
+      let data = null;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        data = text ? { message: text } : {};
+      }
 
-    if (!response.ok) {
-      let errorMessage = '';
+      // Check if backend is reloading/starting (Vite proxy 503 interception)
+      if (
+        response.status === 503 &&
+        (data?.code === 'BACKEND_STARTING' || data?.code === 'BACKEND_OFFLINE') &&
+        attempt < maxRetries
+      ) {
+        attempt++;
+        await sleep(retryDelay * attempt);
+        continue;
+      }
 
-      if (data && data.detail) {
-        if (typeof data.detail === 'string') {
-          errorMessage = data.detail;
-        } else if (Array.isArray(data.detail)) {
-          // Format FastAPI / Pydantic validation error details cleanly
-          errorMessage = data.detail
-            .map((d) => {
-              const field = Array.isArray(d.loc) ? d.loc.slice(-1)[0] : '';
-              const msg = d.msg || (typeof d === 'string' ? d : JSON.stringify(d));
-              return field && field !== 'body' ? `${field}: ${msg}` : msg;
-            })
-            .join('; ');
-        } else if (typeof data.detail === 'object') {
-          errorMessage = data.detail.message || data.detail.msg || JSON.stringify(data.detail);
+      if (!response.ok) {
+        let errorMessage = '';
+
+        if (
+          response.status === 503 &&
+          (data?.code === 'BACKEND_STARTING' || data?.code === 'BACKEND_OFFLINE')
+        ) {
+          errorMessage =
+            'Backend server is offline or unreachable on port 8000. Please ensure the backend server is running.';
+        } else if (data && data.detail) {
+          if (typeof data.detail === 'string') {
+            errorMessage = data.detail;
+          } else if (Array.isArray(data.detail)) {
+            // Format FastAPI / Pydantic validation error details cleanly
+            errorMessage = data.detail
+              .map((d) => {
+                const field = Array.isArray(d.loc) ? d.loc.slice(-1)[0] : '';
+                const msg = d.msg || (typeof d === 'string' ? d : JSON.stringify(d));
+                return field && field !== 'body' ? `${field}: ${msg}` : msg;
+              })
+              .join('; ');
+          } else if (typeof data.detail === 'object') {
+            errorMessage = data.detail.message || data.detail.msg || JSON.stringify(data.detail);
+          }
+        } else if (data && data.message && typeof data.message === 'string' && !data.message.includes('<!DOCTYPE') && !data.message.includes('<html')) {
+          errorMessage = data.message;
+        } else if (data && data.error && typeof data.error === 'string') {
+          errorMessage = data.error;
         }
-      } else if (data && data.message && typeof data.message === 'string' && !data.message.includes('<!DOCTYPE') && !data.message.includes('<html')) {
-        errorMessage = data.message;
-      } else if (data && data.error && typeof data.error === 'string') {
-        errorMessage = data.error;
-      }
 
-      // Friendly contextual fallbacks if backend did not supply a readable detail
-      if (!errorMessage) {
-        switch (response.status) {
-          case 400:
-            errorMessage = 'Invalid request. Please check your input and try again.';
-            break;
-          case 401:
-            errorMessage = 'Incorrect email or password. Please try again.';
-            break;
-          case 403:
-            errorMessage = 'Access denied. You do not have permission for this action.';
-            break;
-          case 404:
-            errorMessage = 'The requested resource was not found.';
-            break;
-          case 409:
-            errorMessage = 'This email address is already registered. Please sign in instead.';
-            break;
-          case 422:
-            errorMessage = 'Input validation failed. Please check all fields.';
-            break;
-          case 429:
-            errorMessage = 'Too many requests. Please wait a moment before trying again.';
-            break;
-          case 500:
-            errorMessage = 'Server error encountered. Please try again shortly.';
-            break;
-          case 502:
-          case 503:
-          case 504:
-            errorMessage = 'Backend service is currently unavailable. Please ensure the server is running.';
-            break;
-          default:
-            errorMessage = `Request failed with status ${response.status}. Please try again.`;
-            break;
+        // Friendly contextual fallbacks if backend did not supply a readable detail
+        if (!errorMessage) {
+          switch (response.status) {
+            case 400:
+              errorMessage = 'Invalid request. Please check your input and try again.';
+              break;
+            case 401:
+              errorMessage = 'Incorrect email or password. Please try again.';
+              break;
+            case 403:
+              errorMessage = 'Access denied. You do not have permission for this action.';
+              break;
+            case 404:
+              errorMessage = 'The requested resource was not found.';
+              break;
+            case 409:
+              errorMessage = 'This email address is already registered. Please sign in instead.';
+              break;
+            case 422:
+              errorMessage = 'Input validation failed. Please check all fields.';
+              break;
+            case 429:
+              errorMessage = 'Too many requests. Please wait a moment before trying again.';
+              break;
+            case 500:
+              errorMessage = 'Server error encountered. Please try again shortly.';
+              break;
+            case 502:
+            case 503:
+            case 504:
+              errorMessage = 'Backend service is currently unavailable. Please ensure the server is running.';
+              break;
+            default:
+              errorMessage = `Request failed with status ${response.status}. Please try again.`;
+              break;
+          }
         }
+
+        // If token expired or unauthorized, broadcast event
+        if (response.status === 401) {
+          window.dispatchEvent(new CustomEvent('documind:unauthorized'));
+        }
+
+        console.error(`[API Error ${response.status}] ${url}:`, errorMessage, data);
+
+        const error = {
+          message: errorMessage,
+          status: response.status,
+          detail: data?.detail,
+        };
+        throw error;
       }
 
-      // If token expired or unauthorized, broadcast event
-      if (response.status === 401) {
-        window.dispatchEvent(new CustomEvent('documind:unauthorized'));
+      return data;
+    } catch (error) {
+      if (error.status) {
+        throw error;
       }
-
-      console.error(`[API Error ${response.status}] ${url}:`, errorMessage, data);
-
-      const error = {
-        message: errorMessage,
-        status: response.status,
-        detail: data?.detail,
+      // Transient network / connection error (e.g. connection refused during reload)
+      if (attempt < maxRetries) {
+        attempt++;
+        await sleep(retryDelay * attempt);
+        continue;
+      }
+      // Network / offline error
+      throw {
+        message: error.message || 'Network connection error. Please ensure the backend server is running.',
+        status: 0,
       };
-      throw error;
     }
-
-    return data;
-  } catch (error) {
-    if (error.status) {
-      throw error;
-    }
-    // Network / offline error
-    throw {
-      message: error.message || 'Network connection error. Please ensure the backend server is running.',
-      status: 0,
-    };
   }
 }
