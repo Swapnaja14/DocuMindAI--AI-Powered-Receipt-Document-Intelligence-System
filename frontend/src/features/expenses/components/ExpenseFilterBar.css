@@ -250,3 +250,55 @@
 .tag-remove:hover {
   opacity: 0.7;
 }
+
+/* Validation Message & Error input */
+.filter-date-input.input-error {
+  border-color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.1) !important;
+}
+
+.filter-validation-msg {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: var(--radius-sm);
+  color: #fca5a5;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.validation-fix-btn {
+  background: transparent;
+  border: none;
+  color: #fee2e2;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.725rem;
+  font-weight: 600;
+}
+
+.validation-fix-btn:hover {
+  color: #ffffff;
+}
+
+@media (max-width: 768px) {
+  .filter-card-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-controls-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-presets {
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+}
+

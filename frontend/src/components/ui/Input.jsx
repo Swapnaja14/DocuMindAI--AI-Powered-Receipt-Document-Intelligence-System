@@ -43,7 +43,6 @@ export const Input = forwardRef(({
             type="button"
             className="input-password-toggle"
             onClick={() => setShowPassword(!showPassword)}
-            tabIndex={-1}
             aria-label={showPassword ? 'Hide password' : 'Show password'}
           >
             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}

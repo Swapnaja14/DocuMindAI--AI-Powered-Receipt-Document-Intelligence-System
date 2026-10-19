@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AppLayout } from '../layouts/AppLayout';
 import { Button } from '../components/ui/Button';
+import { LoadingState } from '../components/ui/LoadingState';
+import { EmptyState } from '../components/ui/EmptyState';
+import { ErrorState } from '../components/ui/ErrorState';
 import {
   TrendingUp,
   RefreshCw,
-  AlertCircle,
   UploadCloud,
-  Loader2,
+  RotateCcw,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { expensesApi } from '../api/expenses';
@@ -33,7 +35,7 @@ export const ExpensesPage = () => {
   const [summaryData, setSummaryData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [error, setError] = useState(null);
+  const [serverError, setServerError] = useState(null);
 
   // Modal inspection state
   const [selectedDocId, setSelectedDocId] = useState(null);
@@ -42,12 +44,24 @@ export const ExpensesPage = () => {
   const fetchSummary = useCallback(
     async (isManualRefresh = false) => {
       if (isManualRefresh) setIsRefreshing(true);
-      setError(null);
+      setServerError(null);
+
+      // Validation check: startDate > endDate
+      if (filters.startDate && filters.endDate && filters.startDate > filters.endDate) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+        return;
+      }
+
       try {
         const data = await expensesApi.getExpenseSummary(filters);
         setSummaryData(data);
       } catch (err) {
-        setError(err.message || 'Failed to load expense summary data.');
+        setServerError({
+          message: err.message || 'Failed to load expense summary data from backend.',
+          status: err.status || 500,
+          details: err.detail,
+        });
       } finally {
         setIsLoading(false);
         setIsRefreshing(false);
@@ -92,6 +106,14 @@ export const ExpensesPage = () => {
     }));
   };
 
+  const hasActiveFilters = Boolean(
+    filters.startDate ||
+      filters.endDate ||
+      filters.currency ||
+      filters.vendor ||
+      (filters.documentIds && filters.documentIds.length > 0)
+  );
+
   return (
     <AppLayout>
       <div className="expenses-page-view animate-fade-in">
@@ -99,7 +121,7 @@ export const ExpensesPage = () => {
         <div className="expenses-hero">
           <div className="hero-text-block">
             <span className="hero-badge">
-              <TrendingUp size={14} className="badge-icon" />
+              <TrendingUp size={14} className="badge-icon" aria-hidden="true" />
               Financial Intelligence
             </span>
             <h1 className="hero-title">Expense Summaries &amp; Analytics</h1>
@@ -115,6 +137,8 @@ export const ExpensesPage = () => {
               onClick={() => fetchSummary(true)}
               isLoading={isRefreshing}
               icon={<RefreshCw size={14} />}
+              title="Refresh financial analytics"
+              aria-label="Refresh financial analytics"
             >
               Refresh Data
             </Button>
@@ -123,21 +147,25 @@ export const ExpensesPage = () => {
               size="sm"
               onClick={() => navigate('/documents')}
               icon={<UploadCloud size={14} />}
+              title="Upload more receipts"
+              aria-label="Upload more receipts"
             >
               Upload Receipts
             </Button>
           </div>
         </div>
 
-        {/* Error Notification */}
-        {error && (
-          <div className="expenses-error-banner animate-fade-in">
-            <AlertCircle size={18} />
-            <span>{error}</span>
-            <Button variant="ghost" size="sm" onClick={() => fetchSummary(true)}>
-              Retry
-            </Button>
-          </div>
+        {/* Server Error Notification with Retry */}
+        {serverError && (
+          <ErrorState
+            variant="banner"
+            title="Expense Intelligence Service"
+            message={serverError.message}
+            status={serverError.status}
+            onRetry={() => fetchSummary(true)}
+            isRetrying={isRefreshing}
+            onDismiss={() => setServerError(null)}
+          />
         )}
 
         {/* Filter Controls Bar */}
@@ -153,10 +181,41 @@ export const ExpensesPage = () => {
 
         {/* Loading State Skeleton */}
         {isLoading && !summaryData ? (
-          <div className="expenses-loading-state">
-            <Loader2 size={36} className="spinner" />
-            <p>Aggregating verified expense summaries across your documents...</p>
+          <div className="expenses-loading-section" role="status" aria-live="polite">
+            <LoadingState
+              variant="skeleton-cards"
+              cardCount={3}
+              message="Aggregating verified expense summaries across your receipts..."
+            />
+            <div style={{ marginTop: '1.5rem' }}>
+              <LoadingState
+                variant="skeleton-table"
+                rows={3}
+                message="Calculating merchant spend distribution..."
+              />
+            </div>
           </div>
+        ) : summaryData && summaryData.overall_document_count === 0 ? (
+          /* Empty State */
+          hasActiveFilters ? (
+            <EmptyState
+              icon={<RotateCcw size={36} />}
+              title="No expenses match your filters"
+              description="No analyzed invoices or receipts match the active date range, merchant, or currency filters. Try broadening your filter parameters."
+              actionLabel="Reset All Filters"
+              onAction={handleResetFilters}
+              actionIcon={<RotateCcw size={15} />}
+            />
+          ) : (
+            <EmptyState
+              icon={<TrendingUp size={36} />}
+              title="No expense data analyzed yet"
+              description="Upload your receipts and invoices to automatically generate multi-currency totals, time-series velocity graphs, merchant rankings, and invoice audits."
+              actionLabel="Upload Receipts Now"
+              onAction={() => navigate('/documents')}
+              actionIcon={<UploadCloud size={16} />}
+            />
+          )
         ) : (
           <>
             {/* View 1: Total Expenses Partitioned Safely by Currency */}
@@ -204,4 +263,5 @@ export const ExpensesPage = () => {
     </AppLayout>
   );
 };
+
 export default ExpensesPage;

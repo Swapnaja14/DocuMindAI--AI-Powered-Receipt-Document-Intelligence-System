@@ -62,6 +62,7 @@ app.add_middleware(
 
 # Register Health & Operational Monitoring Routers
 app.include_router(health.router)
+app.include_router(health.router, prefix="/api")
 app.include_router(health.router, prefix="/api/v1")
 
 # Register API Routers

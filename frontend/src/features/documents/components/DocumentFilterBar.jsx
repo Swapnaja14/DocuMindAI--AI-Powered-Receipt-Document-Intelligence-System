@@ -1,6 +1,7 @@
 import React from 'react';
 import { Search, RotateCw, Activity } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
+import { formatDeviceTime } from '../utils/dateUtils';
 import './DocumentFilterBar.css';
 
 export const DocumentFilterBar = ({
@@ -97,8 +98,8 @@ export const DocumentFilterBar = ({
         </div>
 
         {lastUpdated && (
-          <span className="last-updated-text">
-            Last checked: {lastUpdated.toLocaleTimeString()}
+          <span className="last-updated-text" title="Synchronized with your device clock">
+            Last sync: {formatDeviceTime(lastUpdated, true)}
           </span>
         )}
       </div>
