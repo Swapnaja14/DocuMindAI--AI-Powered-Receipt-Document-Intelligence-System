@@ -12,6 +12,15 @@ from app.schemas.search import (
     SearchResultItem,
 )
 from app.schemas.rag import RAGAskRequest, RAGAskResponse, RAGSource, RetrievalMetadata
+from app.schemas.expense import (
+    ExpenseSummaryRequest,
+    ExpenseSummaryResponse,
+    CurrencyExpenseTotal,
+    VendorExpenseSummary,
+    ExpenseTrendPoint,
+    HighestValueInvoice,
+    AvailableDocumentItem,
+)
 
 __all__ = [
     "SearchMode",

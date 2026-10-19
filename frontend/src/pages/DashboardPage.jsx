@@ -2,19 +2,21 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../features/auth/AuthContext';
 import { AppLayout } from '../layouts/AppLayout';
 import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
 import {
   FileText,
-  Search,
   Shield,
   Calendar,
   CheckCircle,
-  Database,
   Lock,
+  TrendingUp,
+  ArrowRight,
   Sparkles,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { documentsApi } from '../api/documents';
+import { expensesApi } from '../api/expenses';
 import './DashboardPage.css';
 
 export const DashboardPage = () => {
@@ -23,6 +25,7 @@ export const DashboardPage = () => {
   const [healthStatus, setHealthStatus] = useState('checking...');
   const [isHealthReady, setIsHealthReady] = useState(null);
   const [docCount, setDocCount] = useState(0);
+  const [expenseSummary, setExpenseSummary] = useState(null);
 
   useEffect(() => {
     // Check backend readiness probe
@@ -45,6 +48,13 @@ export const DashboardPage = () => {
         }
       } catch {
         // silent fail on dashboard metrics
+      }
+
+      try {
+        const expData = await expensesApi.getExpenseSummary();
+        setExpenseSummary(expData);
+      } catch {
+        // silent fail on expense summary
       }
     };
 
@@ -107,16 +117,41 @@ export const DashboardPage = () => {
             className="metric-card interactive"
             onClick={() => navigate('/chat')}
             style={{ cursor: 'pointer' }}
-            title="Click to open RAG Chat"
+            title="Click to ask questions with AI Chat"
           >
             <div className="metric-header">
               <span className="metric-label">RAG Intelligence</span>
-              <div className="metric-icon-box purple">
+              <div className="metric-icon-box cyan">
                 <Sparkles size={18} />
               </div>
             </div>
             <div className="metric-value">AI Chat</div>
             <p className="metric-desc">Grounded Q&amp;A with citations • Ask now →</p>
+          </Card>
+
+          <Card
+            variant="glass"
+            className="metric-card interactive"
+            onClick={() => navigate('/expenses')}
+            style={{ cursor: 'pointer' }}
+            title="Click to view detailed expense summaries"
+          >
+            <div className="metric-header">
+              <span className="metric-label">Expense Intelligence</span>
+              <div className="metric-icon-box purple">
+                <TrendingUp size={18} />
+              </div>
+            </div>
+            <div className="metric-value">
+              {expenseSummary?.total_expenses?.[0]
+                ? `${expenseSummary.total_expenses[0].currency} ${expenseSummary.total_expenses[0].total_amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : `${expenseSummary?.overall_document_count || 0} Invoices`}
+            </div>
+            <p className="metric-desc">
+              {expenseSummary?.total_expenses?.length > 1
+                ? `${expenseSummary.total_expenses.length} currencies tracked • View summaries →`
+                : 'Audited summaries & analytics • View →'}
+            </p>
           </Card>
 
           <Card variant="glass" className="metric-card">
@@ -129,18 +164,37 @@ export const DashboardPage = () => {
             <div className="metric-value">Argon2id</div>
             <p className="metric-desc">Cryptographically secured tenant</p>
           </Card>
-
-          <Card variant="glass" className="metric-card">
-            <div className="metric-header">
-              <span className="metric-label">Storage Isolation</span>
-              <div className="metric-icon-box cyan">
-                <Database size={18} />
-              </div>
-            </div>
-            <div className="metric-value">50 MB</div>
-            <p className="metric-desc">Max allocation quota</p>
-          </Card>
         </div>
+
+        {/* Expense Quick Glance Banner */}
+        {expenseSummary && expenseSummary.overall_document_count > 0 && (
+          <div className="dashboard-expense-banner animate-fade-in">
+            <Card variant="glass" className="expense-glance-card">
+              <div className="glance-left">
+                <div className="glance-icon-box">
+                  <TrendingUp size={22} />
+                </div>
+                <div>
+                  <h3 className="glance-title">Expense Summaries Active</h3>
+                  <p className="glance-subtitle">
+                    Tracking {expenseSummary.overall_document_count} analyzed receipts across{' '}
+                    {expenseSummary.available_vendors.length} vendors with time-series trends and invoice rankings.
+                  </p>
+                </div>
+              </div>
+              <div className="glance-actions">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => navigate('/expenses')}
+                  icon={<ArrowRight size={14} />}
+                >
+                  View Expense Summaries
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
 
         {/* Profile & Security Credentials Card */}
         <div className="dashboard-details-section">
@@ -152,31 +206,4 @@ export const DashboardPage = () => {
 
             <div className="details-grid">
               <div className="detail-item">
-                <span className="detail-name">Account Email</span>
-                <span className="detail-value">{user?.email}</span>
-              </div>
-
-              <div className="detail-item">
-                <span className="detail-name">User Identifier</span>
-                <span className="detail-value mono">{user?.id}</span>
-              </div>
-
-              <div className="detail-item">
-                <span className="detail-name">Access Role</span>
-                <span className="detail-value capitalize">{user?.role}</span>
-              </div>
-
-              <div className="detail-item">
-                <span className="detail-name">Member Since</span>
-                <span className="detail-value">
-                  <Calendar size={14} className="inline-icon" />
-                  {formattedDate}
-                </span>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </div>
-    </AppLayout>
-  );
-};
+                <span className="detail-name">Account Email

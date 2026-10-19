@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, documents, health, rag, search, users
+from app.api.routes import auth, documents, expenses, health, rag, search, users
 from app.core.config import settings
 from app.core.database import create_indexes
 from app.services.faiss_service import FAISSService
@@ -75,6 +75,8 @@ app.include_router(search.router, prefix="/api")
 app.include_router(search.router, prefix="/api/v1")
 app.include_router(rag.router, prefix="/api")
 app.include_router(rag.router, prefix="/api/v1")
+app.include_router(expenses.router, prefix="/api")
+app.include_router(expenses.router, prefix="/api/v1")
 
 
 @app.get("/")
