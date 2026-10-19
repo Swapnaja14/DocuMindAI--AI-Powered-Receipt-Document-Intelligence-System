@@ -206,31 +206,4 @@ export const DashboardPage = () => {
 
             <div className="details-grid">
               <div className="detail-item">
-                <span className="detail-name">Account Email</span>
-                <span className="detail-value">{user?.email}</span>
-              </div>
-
-              <div className="detail-item">
-                <span className="detail-name">User Identifier</span>
-                <span className="detail-value mono">{user?.id}</span>
-              </div>
-
-              <div className="detail-item">
-                <span className="detail-name">Access Role</span>
-                <span className="detail-value capitalize">{user?.role}</span>
-              </div>
-
-              <div className="detail-item">
-                <span className="detail-name">Member Since</span>
-                <span className="detail-value">
-                  <Calendar size={14} className="inline-icon" />
-                  {formattedDate}
-                </span>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </div>
-    </AppLayout>
-  );
-};
+                <span className="detail-name">Account Email
