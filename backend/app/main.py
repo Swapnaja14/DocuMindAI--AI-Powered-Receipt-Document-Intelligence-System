@@ -47,10 +47,10 @@ app = FastAPI(
 # Configure CORS
 allowed_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
 if not allowed_origins:
-    allowed_origins = ["http://localhost:5173", "http://localhost:3000"]
+    allowed_origins = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"]
 if settings.is_production and "*" in allowed_origins:
     logger.warning("CORS wildcard '*' is prohibited in production with credentials. Reverting to localhost origins.")
-    allowed_origins = ["http://localhost:5173", "http://localhost:3000"]
+    allowed_origins = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"]
 
 app.add_middleware(
     CORSMiddleware,

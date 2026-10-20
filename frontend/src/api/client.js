@@ -1,19 +1,35 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+const RAW_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || '/api/v1';
+export const BASE_URL = RAW_BASE_URL.replace(/\/+$/, '');
 
-// In-memory token storage (with sessionStorage sync to preserve active sessions across tabs/refreshes)
-let activeToken = sessionStorage.getItem('documind_token');
+export const resolveApiUrl = (endpoint) => {
+  if (!endpoint) return BASE_URL;
+  if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+    return endpoint;
+  }
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  return `${BASE_URL}${cleanEndpoint}`;
+};
+
+// In-memory token storage (with sessionStorage sync when available)
+let activeToken = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('documind_token') : null;
 
 export const setAuthToken = (token) => {
   activeToken = token;
-  if (token) {
-    sessionStorage.setItem('documind_token', token);
-  } else {
-    sessionStorage.removeItem('documind_token');
+  if (typeof sessionStorage !== 'undefined') {
+    if (token) {
+      sessionStorage.setItem('documind_token', token);
+    } else {
+      sessionStorage.removeItem('documind_token');
+    }
   }
 };
 
 export const getAuthToken = () => {
-  return activeToken || sessionStorage.getItem('documind_token');
+  if (activeToken) return activeToken;
+  if (typeof sessionStorage !== 'undefined') {
+    return sessionStorage.getItem('documind_token');
+  }
+  return null;
 };
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -39,9 +55,7 @@ export async function apiClient(endpoint, options = {}) {
       delete headers['Content-Type'];
     }
 
-    const url = endpoint.startsWith('http')
-      ? endpoint
-      : `${BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    const url = resolveApiUrl(endpoint);
 
     try {
       const response = await fetch(url, {
@@ -143,7 +157,7 @@ export async function apiClient(endpoint, options = {}) {
         }
 
         // If token expired or unauthorized, broadcast event
-        if (response.status === 401) {
+        if (response.status === 401 && typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
           window.dispatchEvent(new CustomEvent('documind:unauthorized'));
         }
 

@@ -1,6 +1,4 @@
-import { apiClient, getAuthToken } from './client';
-
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+import { apiClient, getAuthToken, resolveApiUrl } from './client';
 
 export const documentsApi = {
   /**
@@ -43,7 +41,7 @@ export const documentsApi = {
       const formData = new FormData();
       formData.append('file', file);
 
-      const url = `${BASE_URL}/documents/upload`;
+      const url = resolveApiUrl('/documents/upload');
 
       xhr.open('POST', url, true);
 
