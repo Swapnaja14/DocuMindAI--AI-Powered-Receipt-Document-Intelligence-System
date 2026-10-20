@@ -72,6 +72,67 @@ Three persistent Docker named volumes maintain state across container restarts a
 2. `documind_mongo_data`: MongoDB primary data files for user accounts, document metadata, OCR extracts, and chunk mappings.
 3. `documind_redis_data`: Append-only file (`appendonly yes`) persistence for active task queue and semantic cache state.
 
+### 2.4 Networking, Reverse Proxy & HTTPS Architecture (Step 15.3)
+
+* **Dual-Port Exposure:** The frontend Nginx container binds to both HTTP (`80`) and HTTPS (`443`) on the host. All public HTTP requests are automatically redirected via HTTP 301 to secure HTTPS (`return 301 https://$host$request_uri;`).
+* **Automated & Custom SSL Certificates:**
+  * **Automated Fallback:** When `./ssl/cert.pem` and `./ssl/key.pem` are not mounted, the Nginx container entrypoint generates a 2048-bit RSA self-signed certificate, enabling immediate out-of-the-box HTTPS testing (`https://localhost`).
+  * **Production Certificates:** Mount your custom CA or Let's Encrypt certificates by placing `cert.pem` (full chain) and `key.pem` (private key) in the root `./ssl/` folder.
+* **Modern Cryptographic Standards:** Configured with `TLSv1.2` and `TLSv1.3`, modern high-strength cipher suites, SSL session caching (`shared:SSL:10m`), and HTTP Strict Transport Security (`Strict-Transport-Security: max-age=31536000; includeSubDomains`).
+* **Reverse Proxy Upload Limits & Timeouts:**
+  * `client_max_body_size 15M;`: Comfortably accommodates maximum receipt and document uploads (10MB limit plus multipart form boundary overhead).
+  * `proxy_connect_timeout 60s; proxy_read_timeout 120s; proxy_send_timeout 120s;`: Prevents gateway timeouts during compute-intensive Gemini OCR and FAISS semantic chunking.
+* **Private Datastore Isolation:** MongoDB (`27017`), Redis (`6379`), and FastAPI backend (`8000`) define **no host ports**. They reside exclusively on the private Docker bridge network `documind_net`.
+* **CORS & Public Origin Control:** When accessed via the unified reverse proxy, the frontend and API share the exact same origin (`https://<domain>/` and `https://<domain>/api/`), preventing third-party cross-origin exploitation. Direct API access validates against explicit `CORS_ORIGINS` whitelists and rejects wildcards in production.
+* **Authentication Security:** Implements stateless JWT Bearer tokens passed via the standard `Authorization: Bearer <token>` HTTP header. Interactive documentation (`/docs`, `/redoc`, `/openapi.json`) is disabled in production to prevent schema leakage.
+
+### 2.5 Background Processing & Celery Architecture (Step 15.4)
+
+* **Celery Worker Execution:** Started with `celery -A app.celery_app worker --loglevel=INFO --concurrency=2`.
+* **Broker Connectivity & Auto-Reconnect:**
+  * `broker_connection_retry_on_startup=True` ensures the worker waits gracefully for Redis readiness during cold boots.
+  * Exponential reconnection backoff (`interval_start=1.0`, `interval_step=1.0`, `interval_max=10.0`) guarantees stability during network partitions.
+* **Redis Eviction Safety (`volatile-lru`):**
+  * **Critical Architecture Decision:** Redis is configured with `--maxmemory-policy volatile-lru` instead of `allkeys-lru`.
+  * **Why?** DocuMind AI uses Redis for two distinct purposes: (1) ephemeral semantic query caching (which includes an explicit TTL: `REDIS_CACHE_TTL_SECONDS`), and (2) Celery task queues / broker state (which do *not* have an expiration TTL).
+  * Under `volatile-lru`, only keys with an explicit TTL can be evicted under memory pressure. Celery queue keys are permanently protected from eviction, preventing dropped document tasks or silent job losses.
+* **Worker Concurrency & Timeouts:**
+  * `worker_prefetch_multiplier=1`: Ensures each worker concurrency slot claims only one document task at a time, eliminating head-of-line blocking for long-running multi-page documents.
+  * `task_soft_time_limit=180`: Allows Celery tasks up to 3 minutes to gracefully catch timeouts before termination.
+  * `task_time_limit=240`: Hard kills runaway processes after 4 minutes.
+  * `task_acks_late=True` and `task_reject_on_worker_lost=True`: Tasks are acknowledged only upon completion; if a worker container crashes during processing, the uncompleted task is safely requeued.
+* **Document Status Consistency:**
+  * Asynchronous processing updates MongoDB atomically across distinct lifecycle stages: `PENDING` -> `PROCESSING` (`ocr_processing`) -> `OCR_COMPLETED` -> `EXTRACTION_COMPLETED` -> `COMPLETED`.
+  * On unrecoverable errors, the document record is updated to `status: FAILED` with detailed `processing.stage` and `processing.error` information for client inspection via `/api/v1/documents`.
+
+### 2.6 Persistence & Disaster Recovery Model (Step 15.5)
+
+* **Zero Container-Local State Reliance:** No application state is written to container-local layers. All critical assets reside on persistent external Docker named volumes:
+  1. `documind_storage`: Uploaded receipt files (`storage/uploads`), FAISS vector index files (`storage/faiss`), and backup bundles (`storage/backups`).
+  2. `documind_mongo_data`: Primary MongoDB data files (`/data/db`), preserving user records, document metadata, OCR extracts, and chunk embeddings.
+  3. `documind_redis_data`: Append-Only File (`appendonly yes`) persistence preserving active task broker queues and result keys.
+* **Container Recreation Resilience:**
+  * Stopping or removing containers (`docker compose down` or `docker compose up --force-recreate`) does **not** alter or destroy volumes.
+  * When containers restart, files, database records, and indices immediately remount.
+* **Complete System Snapshot & Restoration:**
+  * Generate an atomic backup bundle:
+    ```bash
+    docker compose exec backend python scripts/backup_and_recovery.py --backup
+    ```
+    Produces a timestamped compressed archive (`storage/backups/documind_backup_<timestamp>.tar.gz`) containing BSON dumps of all MongoDB collections, a tar archive of all uploaded receipts, and the FAISS vector index.
+  * Restore from a backup archive:
+    ```bash
+    docker compose exec backend python scripts/backup_and_recovery.py --restore storage/backups/documind_backup_<timestamp>.tar.gz
+    ```
+* **FAISS Vector Rebuild from Database:**
+  * If the FAISS vector index binary file is lost, corrupted, or deleted, it can be 100% reconstructed from scratch directly from MongoDB chunk embeddings:
+    ```bash
+    docker compose exec backend python scripts/backup_and_recovery.py --rebuild-index
+    ```
+* **Worker Crash Recovery:**
+  * Configured with `task_acks_late=True` and `task_reject_on_worker_lost=True`.
+  * If a worker is killed (OOM, container restart, host reboot) mid-extraction, the unfinished task is automatically rejected back to the Redis queue, and resumed safely upon worker restart.
+
 ---
 
 ## 3. Step-by-Step Deployment Instructions
@@ -111,35 +172,55 @@ All containers (`documind-frontend`, `documind-backend`, `documind-worker`, `doc
 
 ---
 
-## 4. Observability & Health Probes
+## 4. Observability, Deployment Monitoring & Alerting (Step 15.6)
 
-DocuMind AI provides three tiered health probe endpoints accessible via the backend or reverse proxy:
+DocuMind AI provides a tiered observability suite accessible via the unified reverse proxy:
 
 ### 1. Liveness Probe (`GET /api/v1/health/live`)
 * Confirms the FastAPI event loop is responsive.
-* Returns `200 OK` with `{"status": "alive"}`.
+* Returns `200 OK` with `{"status": "alive", "uptime_seconds": ..., "pid": ...}`.
 
 ### 2. Readiness Probe (`GET /api/v1/health/ready`)
 * Validates connectivity to core datastores (MongoDB & Redis).
 * Returns `200 OK` when ready to serve traffic, `503 Service Unavailable` during database partition.
+* Temporary third-party LLM outages degrade gracefully and do not trigger container restarts.
 
 ### 3. Comprehensive Operational Diagnostics (`GET /api/v1/health`)
 * Aggregates live subsystem telemetry:
-  * MongoDB connection and ping latency.
-  * Redis availability and memory usage.
-  * FAISS vector index count and integrity status.
-  * Celery worker availability and active backlog.
-  * Google Gemini API configuration status.
+  * **API Telemetry:** Request throughput, status code counts (`2xx`, `4xx`, `5xx`), 5xx error rate %, and latency percentiles (`avg`, `p50`, `p95`, `p99`).
+  * **MongoDB:** Ping latency, active database, collections count, objects count, data size MB, and storage size MB.
+  * **Redis:** Ping latency, memory utilization (`used_memory`, `maxmemory`), cache hit/miss counts, hit rate %, and evicted keys.
+  * **Celery:** Worker connectivity, active worker identifiers, queue backlog depth, active processing documents, and total failed documents count.
+  * **FAISS Vector Store:** Load status, total vector count, and mapped chunks count.
+  * **Google Gemini LLM:** Provider reachability, model configuration, and API latency.
+  * **Disk & Upload Storage:** Host/container disk usage (total GB, used GB, free GB, % used) and upload directory footprint (file count, total storage MB).
+  * **Active Alerts:** Evaluated real-time action items across the entire stack.
 
-To inspect logs in real time:
+### 4. Proactive Alerts Endpoint (`GET /api/v1/health/alerts`)
+Evaluates operational thresholds and flags issues requiring operator action:
+* `CRITICAL`: MongoDB disconnected (`DB_DISCONNECTED`).
+* `CRITICAL`: Server disk usage $\ge 95\%$ (`DISK_SPACE_LOW`).
+* `WARNING`: Server disk usage $\ge 90\%$ (`DISK_SPACE_LOW`).
+* `WARNING`: Celery task backlog $\ge 50$ queued items (`HIGH_QUEUE_BACKLOG`).
+* `WARNING`: API 5xx server error rate $\ge 5\%$ (`HIGH_5XX_ERROR_RATE`).
+* `WARNING`: Redis memory utilization $\ge 90\%$ of configured maxmemory (`REDIS_MEMORY_PRESSURE`).
+* `WARNING`: Google Gemini LLM upstream degraded or timing out (`LLM_PROVIDER_DEGRADED`).
+
+### 5. Deployment Metrics Endpoint (`GET /api/v1/health/metrics`)
+* Provides structured operational metrics formatted for automated polling and integration with Prometheus, Datadog, Grafana, or AWS CloudWatch.
+
+### 6. Strict Privacy & Telemetry Hardening
+* **Zero Document Data Leakage:** Health, metrics, and alert endpoints **never** collect, expose, or log sensitive user document text, filenames, OCR snippets, JWT bearer tokens, passwords, or personal identifiable information (PII). Only operational telemetry (counters, percentiles, latency, status codes) is tracked.
+
+### 7. Real-Time Container Logs
 ```bash
-# View backend API requests
+# View backend API requests and telemetry
 docker compose logs -f backend
 
-# View OCR and vector indexing tasks
+# View OCR, extraction, and vector indexing tasks
 docker compose logs -f celery_worker
 
-# View Nginx access and error logs
+# View Nginx access, proxying, and error logs
 docker compose logs -f frontend
 ```
 

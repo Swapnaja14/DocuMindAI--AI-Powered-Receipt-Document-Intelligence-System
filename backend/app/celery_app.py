@@ -26,4 +26,21 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    # Broker & worker connectivity reliability
+    broker_connection_retry_on_startup=True,
+    broker_transport_options={
+        "visibility_timeout": 3600,
+        "max_retries": 5,
+        "interval_start": 1.0,
+        "interval_step": 1.0,
+        "interval_max": 10.0,
+    },
+    # Worker concurrency & queue dispatching
+    worker_prefetch_multiplier=1,
+    task_acks_late=True,
+    task_reject_on_worker_lost=True,
+    result_expires=3600,
+    # Task execution timeouts (prevent runaway OCR or LLM extractions)
+    task_soft_time_limit=180,
+    task_time_limit=240,
 )

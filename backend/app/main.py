@@ -3,9 +3,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+import time
 from app.api.routes import auth, documents, expenses, health, rag, search, users
 from app.core.config import settings
 from app.core.database import create_indexes
+from app.core.telemetry import telemetry_collector
 from app.services.faiss_service import FAISSService
 
 logger = logging.getLogger(__name__)
@@ -42,6 +44,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
     debug=settings.debug,
+    docs_url="/docs" if not settings.is_production else None,
+    redoc_url="/redoc" if not settings.is_production else None,
+    openapi_url="/openapi.json" if not settings.is_production else None,
 )
 
 # Configure CORS
@@ -59,6 +64,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def telemetry_middleware(request, call_next):
+    start_time = time.time()
+    try:
+        response = await call_next(request)
+        latency_ms = round((time.time() - start_time) * 1000, 2)
+        telemetry_collector.record_request(response.status_code, latency_ms)
+        return response
+    except Exception:
+        latency_ms = round((time.time() - start_time) * 1000, 2)
+        telemetry_collector.record_request(500, latency_ms)
+        raise
 
 # Register Health & Operational Monitoring Routers
 app.include_router(health.router)
