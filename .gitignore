@@ -35,6 +35,12 @@ node_modules/
 # Logs
 *.log
 
+# SSL Certificates and Keys
+ssl/
+*.pem
+*.key
+*.crt
+
 # OS Generated
 .DS_Store
 Thumbs.db

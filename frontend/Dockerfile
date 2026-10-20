@@ -21,8 +21,8 @@ RUN npm run build
 # Stage 2: Hardened Nginx runtime server
 FROM nginx:1.27-alpine AS runtime
 
-# Install curl for container health checks
-RUN apk add --no-cache curl
+# Install curl for health checks and openssl for automated fallback TLS generation
+RUN apk add --no-cache curl openssl
 
 # Remove default static landing page
 RUN rm -rf /usr/share/nginx/html/*
@@ -33,12 +33,18 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy custom Nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose HTTP port
-EXPOSE 80
+# Copy entrypoint script to ensure SSL certificates exist
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
-# Health check
+# Expose HTTP and HTTPS ports
+EXPOSE 80 443
+
+# Health check probe against local HTTPS endpoint
 HEALTHCHECK --interval=15s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://127.0.0.1/healthz || exit 1
+    CMD curl -k -f https://127.0.0.1/healthz || exit 1
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
 
 # Start Nginx in foreground
 CMD ["nginx", "-g", "daemon off;"]
