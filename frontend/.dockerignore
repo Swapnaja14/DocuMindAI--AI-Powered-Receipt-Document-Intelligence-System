@@ -1,0 +1,26 @@
+# Git
+.git
+.gitignore
+
+# Environment & Secrets
+.env
+.env.*
+*.env
+
+# Node & Build artifacts
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Tests
+src/__tests__/
+*.test.js
+*.spec.js
+
+# Docker & IDE
+Dockerfile*
+docker-compose*.yml
+.idea/
+.vscode/

@@ -1,5 +1,4 @@
-from sentence_transformers import SentenceTransformer
-from typing import List
+from typing import List, Optional, Any
 
 
 class EmbeddingService:
@@ -11,10 +10,13 @@ class EmbeddingService:
     MODEL_NAME = "all-MiniLM-L6-v2"
 
     def __init__(self):
+        # Lazy import SentenceTransformer to prevent 60-second module import freeze on Windows startup
+        from sentence_transformers import SentenceTransformer
         try:
             self.model = SentenceTransformer(self.MODEL_NAME, local_files_only=True)
         except Exception:
             self.model = SentenceTransformer(self.MODEL_NAME)
+
 
     def generate_embedding(self, text: str) -> List[float]:
         """

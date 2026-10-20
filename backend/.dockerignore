@@ -1,0 +1,33 @@
+# Git
+.git
+.gitignore
+
+# Environment & Secrets (NEVER bake into image)
+.env
+.env.*
+*.env
+*.pem
+*.key
+
+# Python virtual environment & cache
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Tests & Evaluation suites
+tests/
+evaluation/
+
+# Storage & Local runtime uploads
+storage/
+*.log
+
+# Docker & IDE
+Dockerfile*
+docker-compose*.yml
+.idea/
+.vscode/
