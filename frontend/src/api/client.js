@@ -35,8 +35,8 @@ export const getAuthToken = () => {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function apiClient(endpoint, options = {}) {
-  const maxRetries = options.retries !== undefined ? options.retries : 2;
-  const retryDelay = options.retryDelay || 800;
+  const maxRetries = options.retries !== undefined ? options.retries : 4;
+  const retryDelay = options.retryDelay || 1000;
   let attempt = 0;
 
   while (true) {
